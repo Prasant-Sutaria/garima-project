@@ -33,6 +33,46 @@ origin with no path or credentials. The browser sends
 backend. This same-origin proxy needs no backend CORS changes or admin credentials.
 It preserves HTTP status, `Retry-After`, and `X-Request-Id`.
 
+## Run with Docker Compose
+
+Start Docker Desktop (or the Docker Engine) and configure non-empty
+`DB_PASSWORD`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and
+`LOCAL_KEYSTORE_PASSWORD` in the project root `.env`. The database password must match
+the password used when an existing PostgreSQL volume was initialized; changing
+the file does not reset that password. Preserve the existing keystore password
+and key volume when reusing data.
+
+From the project root:
+
+```powershell
+docker compose up --build -d
+```
+
+The frontend's `BACKEND_URL` defaults to `http://api:8080`. To change it, add
+`BACKEND_URL=http://api:<port>` to the root `.env`, or set `BACKEND_URL` in the
+shell before running Compose; shell values take precedence. The port must be
+the API's listening port **inside** its container, not its published host port.
+After changing the value, rerun the `up` command above to recreate the frontend.
+The URL must be an HTTP(S) origin with no path or credentials, using `api` or a
+loopback host; loopback refers to the frontend container itself, not the host
+machine.
+
+Open **http://127.0.0.1:3000**. Compose starts PostgreSQL, the API, and the
+frontend. The API may take a little longer to become ready; check
+`http://127.0.0.1:8080/api/v1/health` before submitting a registration. To stop
+the stack while preserving the database and keys:
+
+```powershell
+docker compose down
+```
+
+In this mode, `CONTAINER_MODE=true` makes the frontend listen on container
+interfaces and allows the Compose `api` hostname as an upstream. Its published
+port is restricted to host loopback, but other containers on the Compose network
+can reach it. Use only a trusted local Docker environment; the API's existing
+Compose port is not restricted to host loopback. For native runs the original
+loopback-only listener and upstream restriction remain in effect.
+
 ## Behavior and safety
 
 - **Synthetic local test data only.** This is not production enrollment, consent,

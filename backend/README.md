@@ -13,8 +13,11 @@ $env:DB_PASSWORD = [guid]::NewGuid().ToString() + [guid]::NewGuid().ToString()
 $env:ADMIN_USERNAME = "study-admin"
 $env:ADMIN_PASSWORD = [guid]::NewGuid().ToString() + [guid]::NewGuid().ToString()
 $env:LOCAL_KEYSTORE_PASSWORD = [guid]::NewGuid().ToString() + [guid]::NewGuid().ToString()
-docker compose up --build
+docker compose -f ..\compose.yaml up --build postgres api
 ```
+
+Run this command from the `backend` directory. When reusing existing volumes,
+use their existing database and keystore passwords instead of generating new ones.
 
 The API listens on `http://localhost:8080`. PostgreSQL migrations run automatically. The local profile creates and persists an EC P-256 signing key, AES-256 wrapping key, and contact-index HMAC key in the ignored `local_keys` volume. Preserve that volume with the database volume; losing it invalidates issued tokens, makes existing encrypted fields unreadable, and prevents further self-registration until the original index key is restored.
 

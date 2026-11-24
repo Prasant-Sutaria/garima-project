@@ -5,7 +5,35 @@ web page, and a separate Python model component. The model component is not
 connected to the API yet; the Android application described in the plans is also
 not part of this workspace.
 
-## Start the application
+## Start with Docker Compose
+
+Start Docker Desktop (or Docker Engine with Compose), then set non-empty
+`DB_PASSWORD`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `LOCAL_KEYSTORE_PASSWORD`
+in the root `.env`. Keep this file private. When reusing existing volumes, use
+their existing database and keystore passwords.
+
+From the project root:
+
+```powershell
+docker compose up --build -d
+```
+
+This starts PostgreSQL, the backend, and the registration frontend. Open
+**http://127.0.0.1:3000**; check backend readiness at
+**http://127.0.0.1:8080/api/v1/health** before submitting a registration. The
+backend can take longer to start than the frontend. Stop the services without
+deleting their data:
+
+```powershell
+docker compose down
+```
+
+The Compose project name remains `backend` to reuse volumes from the previous
+backend Compose setup. Keep both database and key volumes; losing the keys can
+make existing encrypted data unreadable. The API and database ports are exposed
+on host interfaces, so use this local stack only on a trusted network.
+
+## Start with local scripts
 
 ### Requirements
 
@@ -41,7 +69,7 @@ From the project root, run:
 
 The script starts PostgreSQL, starts the backend and waits for its health check,
 then launches the registration frontend. When Docker is available, PostgreSQL
-runs through Compose. On the first run, the script creates `backend/.env` with
+runs through Compose. On the first run, the script creates the root `.env` with
 local credentials and secrets; keep this file private and do not commit it.
 
 Open the registration page at **http://127.0.0.1:3000**. The API listens at
@@ -58,7 +86,8 @@ removing the key volume can make existing local encrypted data unreadable.
 - For backend configuration, direct startup, API docs, and tests, see
   [backend/README.md](./backend/README.md).
 - For frontend configuration and tests, see
-  [registration-frontend/README.md](./registration-frontend/README.md).
+  [registration-frontend/README.md](./registration-frontend/README.md), including
+  how to run it with Docker Compose.
 - The model is an offline, synthetic-data pipeline with a separate optional
   health API. Follow [model/README.md](./model/README.md) to set it up and run
   it; it is not started by `start-all`.

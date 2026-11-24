@@ -74,6 +74,14 @@ async function listen(server, t) {
   return `http://127.0.0.1:${server.address().port}`;
 }
 
+test('container mode permits only the Compose API host in addition to loopback', () => {
+  assert.throws(() => createApp({ backendUrl: 'http://api:8080' }), /loopback/);
+  assert.doesNotThrow(() => createApp({ backendUrl: 'http://api:8080', containerMode: true }));
+  for (const backendUrl of ['http://example.com:8080', 'http://api:8080/path', 'http://user:pass@api:8080']) {
+    assert.throws(() => createApp({ backendUrl, containerMode: true }), /BACKEND_URL/);
+  }
+});
+
 test('proxy forwards exact registration data and status metadata without credentials or retries', async (t) => {
   let requests = 0;
   let upstreamStatus = 201;

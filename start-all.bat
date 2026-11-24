@@ -1,13 +1,13 @@
 @echo off
 setlocal EnableExtensions
 rem Starts PostgreSQL if it is not running, then the Spring Boot backend, then the registration frontend.
-rem Database: Docker Compose (backend\compose.yaml) when Docker is available, otherwise the native PostgreSQL service.
-rem Local secrets are kept in backend\.env (git-ignored) and created on the first run.
+rem Database: root Docker Compose when Docker is available, otherwise the native PostgreSQL service.
+rem Local secrets are kept in the root .env (git-ignored) and created on the first run.
 
 set "ROOT=%~dp0"
 set "BACKEND=%ROOT%backend"
 set "FRONTEND=%ROOT%registration-frontend"
-set "ENV_FILE=%BACKEND%\.env"
+set "ENV_FILE=%ROOT%.env"
 set "HEALTH_URL=http://127.0.0.1:8080/api/v1/health"
 if not defined STARTUP_TIMEOUT_SECONDS set "STARTUP_TIMEOUT_SECONDS=180"
 set /a WAIT_LOOPS=%STARTUP_TIMEOUT_SECONDS%/2
@@ -33,12 +33,12 @@ docker info >nul 2>&1
 if not errorlevel 1 set "DB_MODE=docker"
 
 if not exist "%ENV_FILE%" (
-  echo Creating backend\.env with local secrets.
+  echo Creating root .env with local secrets.
   set "DB_PW_IN="
   if "%DB_MODE%"=="native" set /p "DB_PW_IN=Password of PostgreSQL user usage_api on database usage: "
   powershell -NoProfile -Command "$g={[guid]::NewGuid().ToString('N')+[guid]::NewGuid().ToString('N')}; $db=$env:DB_PW_IN; if(-not $db){$db=& $g}; Set-Content -Path $env:ENV_FILE -Encoding ascii -Value @('ADMIN_USERNAME=study-admin',('ADMIN_PASSWORD='+(& $g)),('LOCAL_KEYSTORE_PASSWORD='+(& $g)),('DB_PASSWORD='+$db),'DB_URL=jdbc:postgresql://localhost:5432/usage','DB_USERNAME=usage_api')"
   if errorlevel 1 (
-    echo ERROR: could not create backend\.env.
+    echo ERROR: could not create root .env.
     exit /b 1
   )
 )
@@ -47,7 +47,7 @@ for /f "usebackq eol=# tokens=1* delims==" %%A in ("%ENV_FILE%") do set "%%A=%%B
 
 if "%DB_MODE%"=="docker" (
   echo [1/3] Database: Docker Compose PostgreSQL
-  pushd "%BACKEND%"
+  pushd "%ROOT%"
   docker compose ps --status running --services 2>nul | findstr /x /c:"postgres" >nul
   if errorlevel 1 (
     echo Starting the PostgreSQL container...

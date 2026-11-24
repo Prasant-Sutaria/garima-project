@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Starts PostgreSQL if it is not running, then the Spring Boot backend, then the registration frontend.
-# Database: Docker Compose (backend/compose.yaml) when Docker is available, otherwise the native PostgreSQL service.
-# Local secrets are kept in backend/.env (git-ignored) and created on the first run.
+# Database: root Docker Compose when Docker is available, otherwise the native PostgreSQL service.
+# Local secrets are kept in the root .env (git-ignored) and created on the first run.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND="$ROOT/backend"
 FRONTEND="$ROOT/registration-frontend"
-ENV_FILE="$BACKEND/.env"
+ENV_FILE="$ROOT/.env"
 HEALTH_URL="http://127.0.0.1:8080/api/v1/health"
 LOG_FILE="$BACKEND/backend.log"
 PID_FILE="$BACKEND/backend.pid"
@@ -28,7 +28,7 @@ need curl
 if docker_ok; then DB_MODE=docker; else DB_MODE=native; fi
 
 if [ ! -f "$ENV_FILE" ]; then
-  echo "Creating backend/.env with local secrets."
+  echo "Creating root .env with local secrets."
   db_password=""
   if [ "$DB_MODE" = native ]; then
     read -r -s -p "Password of PostgreSQL user usage_api on database usage: " db_password
@@ -55,11 +55,11 @@ done < "$ENV_FILE"
 
 if [ "$DB_MODE" = docker ]; then
   echo "[1/3] Database: Docker Compose PostgreSQL"
-  if (cd "$BACKEND" && docker compose ps --status running --services 2>/dev/null | grep -qx postgres); then
+  if (cd "$ROOT" && docker compose ps --status running --services 2>/dev/null | grep -qx postgres); then
     echo "PostgreSQL container is already running."
   else
     echo "Starting the PostgreSQL container..."
-    (cd "$BACKEND" && docker compose up -d --wait postgres) || die "the PostgreSQL container did not become healthy."
+    (cd "$ROOT" && docker compose up -d --wait postgres) || die "the PostgreSQL container did not become healthy."
   fi
 else
   echo "[1/3] Database: native PostgreSQL service"

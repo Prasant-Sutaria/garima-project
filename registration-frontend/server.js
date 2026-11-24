@@ -12,13 +12,16 @@ const assets = new Map([
 const publicDirectory = new URL('./public/', import.meta.url);
 const maxBodyBytes = 262_144;
 
-export function createApp({ backendUrl = 'http://localhost:8080', timeoutMs = 15_000 } = {}) {
+export function createApp({ backendUrl = 'http://localhost:8080', timeoutMs = 15_000, containerMode = false } = {}) {
   const backend = new URL(backendUrl);
+  const allowedHosts = containerMode ? ['localhost', '127.0.0.1', '[::1]', 'api'] : ['localhost', '127.0.0.1', '[::1]'];
   if (!['http:', 'https:'].includes(backend.protocol) ||
-      !['localhost', '127.0.0.1', '[::1]'].includes(backend.hostname) ||
+      !allowedHosts.includes(backend.hostname) ||
       backend.username || backend.password || backend.pathname !== '/' ||
       backend.search || backend.hash) {
-    throw new Error('BACKEND_URL must be a loopback HTTP(S) origin, such as http://localhost:8080.');
+    throw new Error(containerMode
+      ? 'BACKEND_URL must be a loopback or api HTTP(S) origin without a path or credentials.'
+      : 'BACKEND_URL must be a loopback HTTP(S) origin, such as http://localhost:8080.');
   }
 
   return http.createServer(async (request, response) => {
@@ -100,12 +103,13 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error('PORT must be an integer between 1 and 65535.');
   }
-  const server = createApp({ backendUrl: process.env.BACKEND_URL });
+  const containerMode = process.env.CONTAINER_MODE === 'true';
+  const server = createApp({ backendUrl: process.env.BACKEND_URL, containerMode });
   server.on('error', (error) => {
     console.error('Registration server failed:', error.message);
     process.exitCode = 1;
   });
-  server.listen(port, '127.0.0.1', () => {
+  server.listen(port, containerMode ? '0.0.0.0' : '127.0.0.1', () => {
     console.log(`Local-test registration UI: http://127.0.0.1:${port}`);
   });
 }
