@@ -58,6 +58,19 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #b74f3
 .hint { font-size: 10px; color: #7e887f; line-height: 1.6; margin: 7px 0 0; }
 .field-error { color: #a4392d; font-size: 11px; line-height: 1.5; margin: 6px 0 0; }
 .field-error:empty { display: none; }
+.field-label { display: block; font-size: 11px; font-weight: 600; margin-bottom: 8px; }
+.radio-group { display: flex; flex-wrap: wrap; gap: 10px 18px; padding-top: 4px; }
+.radio-group label { display: inline-flex; align-items: center; gap: 7px; font-weight: 400; margin: 0; cursor: pointer; }
+.radio-group input[type="radio"] { width: auto; padding: 0; margin: 0; accent-color: #244e3c; }
+.radio-group[aria-invalid="true"] { outline: 1px solid #b74f3f; outline-offset: 4px; border-radius: 6px; }
+.hobby-rows { display: grid; gap: 8px; }
+.hobby-row { display: flex; gap: 8px; align-items: center; }
+.hobby-row input { flex: 1; }
+.remove-hobby, .add-hobby { padding: 8px 12px; background: #fdfefc; color: #244e3c; border: 1px solid #dfe5dc; font-size: 11px; font-weight: 600; }
+.remove-hobby:hover, .add-hobby:hover { background: #f1f5ee; }
+.remove-hobby { width: 34px; padding: 8px 0; font-size: 15px; line-height: 1; }
+.add-hobby { margin-top: 8px; }
+.hobby-list[aria-invalid="true"] .hobby-row input { border-color: #b74f3f; }
 .section-description { font-size: 11px; color: #7b857c; margin: -10px 0 17px; line-height: 1.6; }
 .form-actions { margin-top: 24px; padding-top: 22px; border-top: 1px solid #eef0ea; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .form-actions p { font-size: 10px; color: #7b857c; line-height: 1.7; margin: 0; }

@@ -41,7 +41,7 @@
               <div class="grid">
                 <div class="field full"><label for="user_name">User name</label><input id="user_name" name="user_name" type="text" maxlength="120" placeholder="e.g. Alex Example" required aria-describedby="user_name-error"><p class="field-error" id="user_name-error"></p></div>
                 <div class="field"><label for="age">Age</label><input id="age" name="age" type="number" min="0" max="120" step="1" inputmode="numeric" placeholder="e.g. 25" required aria-describedby="age-error"><p class="field-error" id="age-error"></p></div>
-                <div class="field"><label for="gender">Gender</label><input id="gender" name="gender" type="text" maxlength="64" placeholder="Describe in your own words" required aria-describedby="gender-error"><p class="field-error" id="gender-error"></p></div>
+                <div class="field"><span class="field-label" id="gender-label">Gender</span><div class="radio-group" id="gender" role="radiogroup" aria-labelledby="gender-label" aria-describedby="gender-error"><label><input type="radio" name="gender" value="Female" required> Female</label><label><input type="radio" name="gender" value="Male"> Male</label><label><input type="radio" name="gender" value="Non-binary"> Non-binary</label><label><input type="radio" name="gender" value="Prefer not to say"> Prefer not to say</label></div><p class="field-error" id="gender-error"></p></div>
               </div>
             </section>
             <section class="form-section" aria-labelledby="contact-title">
@@ -55,8 +55,8 @@
               <h3 id="activities-title"><span aria-hidden="true">03</span> Your everyday activities</h3>
               <p class="section-description">What do you enjoy doing? A short description is enough.</p>
               <div class="grid">
-                <div class="field"><label for="indoor_activity">Indoor activity</label><textarea id="indoor_activity" name="indoor_activity" maxlength="2000" rows="3" placeholder="e.g. Reading, cooking, or playing music" required aria-describedby="indoor_activity-error"></textarea><p class="field-error" id="indoor_activity-error"></p></div>
-                <div class="field"><label for="outdoor_activity">Outdoor activity</label><textarea id="outdoor_activity" name="outdoor_activity" maxlength="2000" rows="3" placeholder="e.g. Walking, gardening, or cycling" required aria-describedby="outdoor_activity-error"></textarea><p class="field-error" id="outdoor_activity-error"></p></div>
+                <div class="field"><span class="field-label" id="indoor_activity-label">Indoor activity</span><div class="hobby-list" id="indoor_activity" data-field="indoor_activity" role="group" aria-labelledby="indoor_activity-label" aria-describedby="indoor_activity-error"><div class="hobby-rows"></div><button class="add-hobby" type="button" data-target="indoor_activity">+ Add indoor hobby</button></div><p class="field-error" id="indoor_activity-error"></p></div>
+                <div class="field"><span class="field-label" id="outdoor_activity-label">Outdoor activity</span><div class="hobby-list" id="outdoor_activity" data-field="outdoor_activity" role="group" aria-labelledby="outdoor_activity-label" aria-describedby="outdoor_activity-error"><div class="hobby-rows"></div><button class="add-hobby" type="button" data-target="outdoor_activity">+ Add outdoor hobby</button></div><p class="field-error" id="outdoor_activity-error"></p></div>
               </div>
             </section>
           </fieldset>

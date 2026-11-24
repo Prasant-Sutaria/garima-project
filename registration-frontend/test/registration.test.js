@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { once } from 'node:events';
 import { createApp } from '../server.js';
-import { validate, interpretResponse, retryDelay } from '../public/registration.js';
+import { validate, interpretResponse, retryDelay, joinHobbies } from '../public/registration.js';
 
 const valid = {
   user_name: 'Example Person',
@@ -27,6 +27,12 @@ test('validates required fields, exact phone format, email, and integer age boun
   }
   assert.ok(validate({ ...valid, email: 'invalid@' }).email);
   assert.ok(validate({ ...valid, gender: '   ' }).gender);
+});
+
+test('joins hobby textboxes for the single-string API fields, dropping blanks', () => {
+  assert.equal(joinHobbies(['  Reading ', '', '   ', 'Cooking']), 'Reading, Cooking');
+  assert.equal(joinHobbies(['']), '');
+  assert.ok(validate({ ...valid, indoor_activity: joinHobbies(['']) }).indoor_activity);
 });
 
 test('enforces backend UTF-16 length boundaries, including surrogate pairs', () => {

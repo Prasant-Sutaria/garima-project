@@ -79,7 +79,8 @@ loopback-only listener and upstream restriction remain in effect.
   contact verification, device registration, or authentication.
 - All seven backend fields are required. The form validates formats and lengths,
   sends exact snake_case property names and numeric age, and preserves input on
-  failure. Gender and activities remain free text.
+  failure. Gender is a radio group; each activity is a list of hobby textboxes that
+  are joined with commas into the existing string fields.
 - Only HTTP 201 with a valid `P-[A-Z0-9]{6}` ID shows success. Copy/save the ID
   before closing or refreshing; there is no recovery endpoint.
 - Duplicate contact, oversized request, validation, and rate-limit failures are

@@ -1,9 +1,13 @@
-import { fields, validate, retryDelay, interpretResponse, unknownOutcome } from './registration.js';
+import { fields, validate, retryDelay, interpretResponse, unknownOutcome, joinHobbies } from './registration.js';
 
 const form = document.querySelector('#registration-form');
 const fieldset = document.querySelector('#registration-fields');
 const button = document.querySelector('#submit-button');
 const status = document.querySelector('#form-status');
+const hobbyFields = {
+  indoor_activity: { placeholder: 'e.g. Reading' },
+  outdoor_activity: { placeholder: 'e.g. Walking' },
+};
 let submitting = false;
 let blockedUntil = 0;
 let countdown;
@@ -15,20 +19,69 @@ function showStatus(message) {
   status.focus();
 }
 
+// Each field's error container and ARIA state live on the element whose id matches the field name.
+function fieldRoot(name) {
+  return document.getElementById(name);
+}
+
 function showFieldError(name, error) {
-  const input = form.elements.namedItem(name);
-  input.setAttribute('aria-invalid', String(Boolean(error)));
+  fieldRoot(name).setAttribute('aria-invalid', String(Boolean(error)));
   document.getElementById(`${name}-error`).textContent = error || '';
 }
 
-for (const name of Object.keys(fields)) {
-  form.elements.namedItem(name).addEventListener('input', () => {
-    if (form.elements.namedItem(name).getAttribute('aria-invalid') === 'true') {
-      const values = Object.fromEntries(new FormData(form));
-      showFieldError(name, validate(values)[name]);
-    }
+function hobbyInputs(name) {
+  return [...fieldRoot(name).querySelectorAll('.hobby-row input')];
+}
+
+function renumberHobbies(name) {
+  hobbyInputs(name).forEach((input, index) => {
+    input.setAttribute('aria-label', `${fields[name].label} hobby ${index + 1}`);
+    input.placeholder = index === 0 ? hobbyFields[name].placeholder : '';
   });
 }
+
+function addHobby(name) {
+  const rows = fieldRoot(name).querySelector('.hobby-rows');
+  const row = document.createElement('div');
+  row.className = 'hobby-row';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.maxLength = fields[name].max;
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'remove-hobby';
+  remove.textContent = '\u00d7';
+  remove.addEventListener('click', () => {
+    row.remove();
+    renumberHobbies(name);
+    showFieldError(name, validate(readValues())[name]);
+  });
+  row.append(input, remove);
+  rows.append(row);
+  renumberHobbies(name);
+  return input;
+}
+
+for (const name of Object.keys(hobbyFields)) {
+  addHobby(name);
+  fieldRoot(name).querySelector('.add-hobby').addEventListener('click', () => addHobby(name).focus());
+}
+
+// Converts the hobby textboxes into the single string fields the backend expects.
+function readValues() {
+  const values = Object.fromEntries(new FormData(form));
+  for (const name of Object.keys(hobbyFields)) {
+    values[name] = joinHobbies(hobbyInputs(name).map((input) => input.value));
+  }
+  return values;
+}
+
+form.addEventListener('input', (event) => {
+  const name = event.target.closest('[data-field]')?.dataset.field ?? event.target.name;
+  if (name in fields && fieldRoot(name).getAttribute('aria-invalid') === 'true') {
+    showFieldError(name, validate(readValues())[name]);
+  }
+});
 
 function updateButton() {
   const seconds = Math.ceil((blockedUntil - Date.now()) / 1000);
@@ -44,7 +97,7 @@ function updateButton() {
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (submitting || Date.now() < blockedUntil) return;
-  const values = Object.fromEntries(new FormData(form));
+  const values = readValues();
   const errors = validate(values);
   // Native email validity complements the shared syntax and length checks.
   if (values.email && form.elements.namedItem('email').validity.typeMismatch) {
@@ -53,7 +106,8 @@ form.addEventListener('submit', async (event) => {
   for (const name of Object.keys(fields)) showFieldError(name, errors[name]);
   if (Object.keys(errors).length) {
     showStatus('Please check the highlighted fields before continuing.');
-    form.elements.namedItem(Object.keys(errors)[0]).focus();
+    const firstError = fieldRoot(Object.keys(errors)[0]);
+    (firstError.querySelector('input') ?? firstError).focus();
     return;
   }
   if (outcomeUnknown && !window.confirm(

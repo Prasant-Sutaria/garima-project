@@ -8,6 +8,10 @@ export const fields = {
   outdoor_activity: { label: 'Outdoor activity', max: 2000 },
 };
 
+export function joinHobbies(hobbies) {
+  return hobbies.map((hobby) => hobby.trim()).filter(Boolean).join(', ');
+}
+
 export function validate(values) {
   const errors = {};
   for (const [name, field] of Object.entries(fields)) {
