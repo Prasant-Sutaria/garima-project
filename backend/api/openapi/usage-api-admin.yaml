@@ -1,0 +1,173 @@
+---
+openapi: "3.1.0"
+info:
+  title: "Usage Publisher API"
+  description: "Local/test contract for the mobile usage publisher and study administrators.\
+    \ Production KMS, TLS, and staff identity-provider integration are not configured."
+  version: "v1"
+servers:
+- url: "http://localhost"
+  description: "Generated server url"
+paths:
+  /api/v1/admin/registrations:
+    post:
+      tags:
+      - "admin"
+      summary: "Import encrypted study registration records"
+      description: "Admin-only. Age and gender are encrypted immediately and are never\
+        \ logged or exported."
+      operationId: "adminImportRegistrations"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegistrationImportRequest"
+        required: true
+      responses:
+        "201":
+          description: "Records imported"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResponse"
+        "401":
+          description: "Admin authentication failed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: "One or more IDs already exist"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "422":
+          description: "Invalid request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "413":
+          description: "Request exceeds 256 KiB"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      security:
+      - adminBasic: []
+  /api/v1/admin/registrations/{registration_id}:
+    patch:
+      tags:
+      - "admin"
+      summary: "Update registration status"
+      description: "Changing status to withdrawn immediately prevents further authentication\
+        \ and uploads."
+      operationId: "adminUpdateRegistration"
+      parameters:
+      - name: "registration_id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatusRequest"
+        required: true
+      responses:
+        "204":
+          description: "Status changed"
+        "401":
+          description: "Admin authentication failed"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: "Registration not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "422":
+          description: "Invalid request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "413":
+          description: "Request exceeds 256 KiB"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      security:
+      - adminBasic: []
+components:
+  schemas:
+    Participant:
+      type: "object"
+      properties:
+        registration_id:
+          type: "string"
+          minLength: 1
+          pattern: "P-[A-Z0-9]{6}"
+        age:
+          type: "integer"
+          format: "int32"
+          maximum: 120
+          minimum: 0
+        gender:
+          type: "string"
+          maxLength: 64
+          minLength: 0
+      required:
+      - "age"
+      - "gender"
+      - "registration_id"
+    RegistrationImportRequest:
+      type: "object"
+      properties:
+        registrations:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Participant"
+          maxItems: 500
+          minItems: 0
+      required:
+      - "registrations"
+    ApiError:
+      type: "object"
+      description: "Generic error response without internal or participant data"
+      properties:
+        code:
+          type: "string"
+        message:
+          type: "string"
+        request_id:
+          type: "string"
+    ImportResponse:
+      type: "object"
+      properties:
+        imported:
+          type: "integer"
+          format: "int32"
+    StatusRequest:
+      type: "object"
+      properties:
+        status:
+          type: "string"
+          minLength: 1
+          pattern: "active|withdrawn"
+      required:
+      - "status"
+  securitySchemes:
+    deviceBearer:
+      type: "http"
+      scheme: "bearer"
+      bearerFormat: "JWT"
+    adminBasic:
+      type: "http"
+      scheme: "basic"

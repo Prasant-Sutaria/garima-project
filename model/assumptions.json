@@ -1,0 +1,62 @@
+{
+  "source": "synthetic",
+  "purpose": "Pipeline validation only. Not a clinical label, threshold, intervention evaluation, or effectiveness claim.",
+  "participants": 2000,
+  "periods_per_participant": 2,
+  "days_per_period": 14,
+  "holdout_fraction": 0.2,
+  "temporal_gap_days": 20,
+  "default_seed": 20261124,
+  "source_marking": {
+    "value": "synthetic",
+    "applies_to": [
+      "every synthetic record",
+      "every generated file",
+      "every model version",
+      "every report, including the sensitivity report"
+    ],
+    "storage": "Synthetic and real data are never stored in the same tables."
+  },
+  "sensitivity_checks": "The validation is rerun with weaker (0.7) and stronger (1.3) planted effects as well as nominal (1.0). Report whether the conclusions hold across all three.",
+  "not_used_for": [
+    "tuning remediation",
+    "claiming effectiveness"
+  ],
+  "ethics": "Confirm with the committee that synthetic data without real persons needs no approval. Keep the generator code and this file with the thesis.",
+  "plan_deviations": {
+    "night_time_use_share": "model-plan.md lists it as an example feature and label driver (to be confirmed). Omitted because the daily snapshot contract has no time-of-day data.",
+    "pickup_count": "model-plan.md lists it as an example feature and label driver (to be confirmed). Replaced by unlock count, which is not a pickup count, and by app launch count as a session proxy."
+  },
+  "features": {
+    "mean_daily_screen_on_seconds": "Daily snapshot screen-on total, averaged over the 14-day period.",
+    "mean_daily_unlock_count": "Daily unlock count, averaged over the 14-day period; not a pickup count.",
+    "mean_daily_launch_count": "App launch count, averaged over the 14-day period; used as a session-count proxy.",
+    "mean_session_seconds": "Sum of app foreground seconds divided by app launches.",
+    "top_app_share": "Largest app foreground-time share within the period.",
+    "weekend_usage_shift": "Weekend minus weekday average foreground seconds, divided by overall daily mean.",
+    "usage_trend_per_day": "Least-squares slope of daily foreground seconds over the period.",
+    "age_band": "Synthetic age band; no exact age or registration identifier is generated.",
+    "declared_interest": "Synthetic value from a fixed interest list."
+  },
+  "label": {
+    "name": "synthetic_questionnaire_score",
+    "definition": "A noisy 0-100 synthetic proxy based on average daily screen-on hours, daily unlocks, and positive daily foreground-use trend. The binary training label is score >= 50.",
+    "rule": "logit = -3.2 + 0.65 * screen_on_hours + 0.012 * unlocks + 0.7 * max(usage_trend_hours_per_day, 0) + 0.4 * top_app_share + noise",
+    "noise": "Normal noise with standard deviation 0.8 is added to the logit. The inverse logistic transform is multiplied by 100.",
+    "effect_scale_applied_to": "Usage-feature coefficients only; the intercept and noise distribution are unchanged.",
+    "effect_scales": {
+      "weaker": 0.7,
+      "nominal": 1.0,
+      "stronger": 1.3
+    }
+  },
+  "excluded": [
+    "gender",
+    "registration_id",
+    "user_id",
+    "payload_enc",
+    "names and contact details",
+    "night-time use (not present in the current daily snapshot contract)",
+    "pickup count (unlock_count is not a pickup count)"
+  ]
+}

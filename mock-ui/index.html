@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usage Publisher (mock)</title>
+<style>
+  body { font-family: Roboto, Arial, sans-serif; background: #f2f2f2; margin: 0; }
+  .app-bar { background: #1976d2; color: #fff; padding: 16px; font-size: 20px; }
+  .content { padding: 16px; max-width: 480px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+  .card h3 { margin: 0 0 8px; font-size: 16px; }
+  .status { font-size: 14px; margin: 4px 0; }
+  .ok { color: #2e7d32; }
+  .warn { color: #c62828; }
+  button { background: #1976d2; color: #fff; border: none; border-radius: 4px; padding: 10px 14px; font-size: 14px; cursor: pointer; margin-top: 6px; }
+  button.secondary { background: #607d8b; }
+  button:disabled { background: #bdbdbd; cursor: not-allowed; }
+  label { display: block; font-size: 13px; margin-top: 10px; color: #555; }
+  input { width: 100%; box-sizing: border-box; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; }
+  .last-status { font-family: Consolas, monospace; font-size: 13px; background: #fafafa; border: 1px solid #e0e0e0; padding: 8px; border-radius: 4px; white-space: pre-wrap; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #ffe082; margin-left: 6px; vertical-align: middle; }
+  .hamburger { background: none; color: #fff; font-size: 22px; padding: 0 12px 0 0; margin: 0; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 5; }
+  .drawer-overlay.open { display: block; }
+  .drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 240px; background: #fff; transform: translateX(-100%); transition: transform .2s; z-index: 6; box-shadow: 2px 0 6px rgba(0,0,0,.3); }
+  .drawer.open { transform: none; }
+  .drawer button { display: block; width: 100%; text-align: left; background: none; color: #333; margin: 0; border-radius: 0; padding: 14px 16px; border-bottom: 1px solid #eee; font-size: 15px; }
+  input.code { font-size: 22px; letter-spacing: 8px; text-align: center; }
+  button.link { background: none; color: #1976d2; padding: 6px 0; text-decoration: underline; }
+  .error { color: #c62828; font-size: 13px; min-height: 18px; margin: 6px 0 0; }
+  .ok { color: #2e7d32; }
+  .row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding: 10px 0; cursor: pointer; font-size: 14px; }
+  .row:last-child { border-bottom: none; }
+  .row .meta { color: #555; font-size: 12px; }
+  .badge { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #e0e0e0; }
+  .badge.manual { background: #ffe082; }
+  .code-block { font-family: Consolas, monospace; font-size: 12px; background: #fafafa; border: 1px solid #e0e0e0; padding: 8px; border-radius: 4px; white-space: pre; overflow-x: auto; }
+  .note { font-size: 13px; color: #555; margin: 6px 0; }
+  select { width: 100%; box-sizing: border-box; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; background: #fff; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="app-bar"><button class="hamburger" id="menuBtn" onclick="toggleDrawer(true)" style="display:none" aria-label="Menu">&#9776;</button>Usage Publisher <span class="tag">MOCK</span></div>
+
+<div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer(false)"></div>
+<nav class="drawer" id="drawer">
+  <button onclick="openView('viewHome')">Home</button>
+  <button onclick="openView('viewSettings')">Settings</button>
+  <button onclick="lockApp()">Lock app</button>
+</nav>
+
+<div class="content">
+
+  <section class="view active" id="viewLogin">
+    <div class="card">
+      <h3>Enter security code</h3>
+      <p class="note">Mock code is <strong>123456</strong>. Background publishing keeps running while the app is locked.</p>
+      <label for="lockCode">Security code</label>
+      <input id="lockCode" class="code" type="password" inputmode="numeric" maxlength="6">
+      <p class="error" id="lockError"></p>
+      <p class="note" id="lockAttempts">Failed attempts: 0 of 5</p>
+      <button id="unlockBtn" onclick="unlock()">Unlock</button>
+      <div><button class="link" onclick="openView('viewRegenerate')">Forgot code?</button></div>
+    </div>
+    <div class="card">
+      <h3>Lockout status</h3>
+      <p class="note">5 wrong codes block input for 30 seconds, doubling after each further failure, up to 15 minutes.</p>
+      <p class="note" id="lockoutState">Not locked.</p>
+    </div>
+  </section>
+
+  <section class="view" id="viewRegenerate">
+    <div class="card">
+      <h3>Regenerate security code</h3>
+      <div id="regenAnswerStep">
+        <p class="note">Question: <strong>Name of your first school</strong> (mock)</p>
+        <label for="regenAnswer">Your answer</label>
+        <input id="regenAnswer" autocomplete="off">
+        <p class="error" id="regenError"></p>
+        <p class="note" id="regenAttempts">Attempts left: 5</p>
+        <button onclick="checkRegenAnswer()">Check answer</button>
+      </div>
+      <div id="regenNewCodeStep" style="display:none">
+        <p class="ok">Answer accepted. Set a new 6-digit code.</p>
+        <label for="newCode">New security code</label>
+        <input id="newCode" class="code" type="password" inputmode="numeric" maxlength="6">
+        <label for="newCodeConfirm">Confirm new code</label>
+        <input id="newCodeConfirm" class="code" type="password" inputmode="numeric" maxlength="6">
+        <p class="error" id="newCodeError"></p>
+        <button onclick="saveNewCode()">Save new code</button>
+      </div>
+      <p class="note">The activation ID is not changed, so reports stay linked. If regeneration keeps failing, ask your study coordinator to reset the activation.</p>
+      <div><button class="link" onclick="openView('viewLogin')">Back to unlock</button></div>
+    </div>
+  </section>
+
+  <section class="view" id="viewSettings">
+  <div class="card">
+    <h3>Settings</h3>
+    <label for="apiUrl">API URL</label>
+    <input id="apiUrl" value="https://example.com/api/v1/usage/snapshots">
+    <label for="token">Auth token</label>
+    <input id="token" type="password" value="mock-token">
+    <label for="publishTime">Publish time</label>
+    <input id="publishTime" type="time" value="23:55">
+    <button onclick="saveSettings()">Save settings</button>
+    <p class="note"><strong>Permissions</strong></p>
+    <p class="status" id="usageAccess">Usage access: <span class="warn">Not granted</span></p>
+    <button class="secondary" onclick="toggle('usageAccess', 'Usage access')">Open usage access settings</button>
+    <p class="status" id="exactAlarm">Exact alarms: <span class="warn">Not allowed</span></p>
+    <button class="secondary" onclick="toggle('exactAlarm', 'Exact alarms')">Allow exact alarms</button>
+    <p class="status" id="battery">    Battery optimization: <span class="warn">Not exempt</span></p>
+        <button class="secondary" onclick="toggle('battery', 'Battery optimization')">Exempt app from battery optimization</button>
+  </div>
+  <div class="card">
+    <h3>Schedule</h3>
+    <p class="status">Next scheduled publish: <strong id="nextRun">--</strong></p>
+  </div>
+  <div class="card">
+    <h3>Publish</h3>
+    <button id="forcePublish" onclick="forcePublish()">Force publish</button>
+    <p class="status" id="pendingState"></p>
+    <label>Last status</label>
+    <div class="last-status" id="lastStatus">No publish yet.</div>
+  </div>
+  <div class="card">
+    <h3>Audit</h3>
+    <p class="note">Review locally saved snapshots and their payloads.</p>
+    <button class="secondary" onclick="openView('viewAudit')">View audit snapshots</button>
+  </div>
+  </section>
+
+  <section class="view" id="viewHome">
+  <div class="card">
+    <h3>Recommendations <span class="tag">EXAMPLES</span></h3>
+    <p class="note">Mock examples only, not personalized recommendations or a diagnosis.</p>
+    <ul>
+      <li>Try checking notifications at set times instead of as they arrive.</li>
+      <li>Consider a screen-free wind-down before bedtime.</li>
+    </ul>
+  </div>
+  </section>
+
+  <section class="view" id="viewAudit">
+  <div class="card">
+    <h3>Audit: snapshots (last 7 days)</h3>
+    <p class="note">Read-only. Tap a row to see the exact JSON that is sent to the server. Phase 1 status: saved locally, not published.</p>
+    <div id="auditList"></div>
+    <button class="secondary" onclick="closeDetail(); openView('viewSettings')">Back to settings</button>
+  </div>
+  <div class="card" id="auditDetailCard" style="display:none">
+    <h3 id="auditDetailTitle">Payload</h3>
+    <div class="code-block" id="auditDetail"></div>
+    <div><button class="secondary" onclick="closeDetail()">Close</button></div>
+  </div>
+  </section>
+
+</div>
+
+<script>
+  // Mock state only. Nothing here calls the API or the Android system.
+  const granted = { usageAccess: false, exactAlarm: false, battery: false };
+
+  function toggle(key, label) {
+    granted[key] = !granted[key];
+    document.getElementById(key).innerHTML =
+      label + ': <span class="' + (granted[key] ? 'ok">Granted' : 'warn">Not granted') + '</span>';
+  }
+
+  function nextRunText() {
+    const [h, m] = document.getElementById('publishTime').value.split(':').map(Number);
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(h, m, 0, 0);
+    if (next <= now) next.setDate(next.getDate() + 1);
+    return next.toLocaleString();
+  }
+
+  function saveSettings() {
+    document.getElementById('nextRun').textContent = nextRunText();
+    document.getElementById('lastStatus').textContent = 'Settings saved (mock).';
+  }
+
+  function forcePublish() {
+    const btn = document.getElementById('forcePublish');
+    const pending = document.getElementById('pendingState');
+    btn.disabled = true;
+    pending.textContent = 'Upload queued (WorkManager, CONNECTED)...';
+    setTimeout(() => {
+      const now = new Date();
+      pending.textContent = '';
+      document.getElementById('lastStatus').textContent =
+        'trigger: manual\n' +
+        'window: 00:00 to ' + now.toLocaleTimeString() + '\n' +
+        'result: HTTP 200 (mock)\n' +
+        'snapshot id: mock-' + now.getTime();
+      btn.disabled = false;
+    }, 1500);
+  }
+
+  // Navigation: login is the first screen. The hamburger menu appears only after unlock.
+  function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === id));
+  }
+
+  function openView(id) {
+    toggleDrawer(false);
+    showView(id);
+  }
+
+  function toggleDrawer(open) {
+    document.getElementById('drawer').classList.toggle('open', open);
+    document.getElementById('drawerOverlay').classList.toggle('open', open);
+  }
+
+  function lockApp() {
+    toggleDrawer(false);
+    document.getElementById('menuBtn').style.display = 'none';
+    document.getElementById('lockCode').value = '';
+    document.getElementById('lockError').textContent = '';
+    showView('viewLogin');
+    updateLockUi();
+  }
+
+  // Mock lockout: 5 wrong codes, then 30 s doubling per lockout, capped at 900 s.
+  const MOCK_CODE = '123456';
+  const MAX_ATTEMPTS = 5;
+  let failedAttempts = 0;
+  let lockouts = 0;
+  let lockedUntil = 0;
+  let lockTimer = null;
+
+  function unlock() {
+    const err = document.getElementById('lockError');
+    const input = document.getElementById('lockCode');
+    if (Date.now() < lockedUntil) return;
+    if (input.value === MOCK_CODE) {
+      failedAttempts = 0;
+      lockouts = 0;
+      input.value = '';
+      err.textContent = '';
+      document.getElementById('menuBtn').style.display = '';
+      updateLockUi();
+      showView('viewHome');
+      return;
+    }
+    failedAttempts++;
+    input.value = '';
+    if (failedAttempts >= MAX_ATTEMPTS) {
+      lockouts++;
+      const seconds = Math.min(30 * Math.pow(2, lockouts - 1), 900);
+      lockedUntil = Date.now() + seconds * 1000;
+      failedAttempts = 0;
+      err.textContent = 'Too many wrong codes.';
+      clearInterval(lockTimer);
+      lockTimer = setInterval(updateLockUi, 250);
+    } else {
+      err.textContent = 'Wrong security code.';
+    }
+    updateLockUi();
+  }
+
+  function updateLockUi() {
+    const remaining = Math.ceil((lockedUntil - Date.now()) / 1000);
+    const locked = remaining > 0;
+    document.getElementById('unlockBtn').disabled = locked;
+    document.getElementById('lockCode').disabled = locked;
+    document.getElementById('lockAttempts').textContent = 'Failed attempts: ' + failedAttempts + ' of ' + MAX_ATTEMPTS;
+    document.getElementById('lockoutState').textContent = locked
+      ? 'Locked. Try again in ' + remaining + ' s (lockout #' + lockouts + ').'
+      : 'Not locked.';
+    if (!locked) clearInterval(lockTimer);
+  }
+
+  // Mock regeneration: answer normalized by trim, lowercase, single spaces.
+  const MOCK_ANSWER = 'mock school';
+  let regenAttempts = 5;
+
+  function normalizeAnswer(text) {
+    return text.trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  function checkRegenAnswer() {
+    const err = document.getElementById('regenError');
+    if (normalizeAnswer(document.getElementById('regenAnswer').value) === MOCK_ANSWER) {
+      document.getElementById('regenAnswerStep').style.display = 'none';
+      document.getElementById('regenNewCodeStep').style.display = '';
+      err.textContent = '';
+      return;
+    }
+    regenAttempts--;
+    err.textContent = 'Wrong answer.';
+    document.getElementById('regenAttempts').textContent = 'Attempts left: ' + regenAttempts;
+    if (regenAttempts <= 0) {
+      document.getElementById('regenAnswerStep').querySelectorAll('input,button').forEach(el => el.disabled = true);
+      err.textContent = 'Regeneration locked. Ask your study coordinator to reset the activation.';
+    }
+  }
+
+  function saveNewCode() {
+    const code = document.getElementById('newCode').value;
+    const confirm = document.getElementById('newCodeConfirm').value;
+    const err = document.getElementById('newCodeError');
+    if (!/^\d{6}$/.test(code)) { err.textContent = 'The security code must be exactly 6 digits.'; return; }
+    if (code !== confirm) { err.textContent = 'The two codes do not match.'; return; }
+    err.innerHTML = '<span class="ok">New code saved (mock). Old code is no longer valid.</span>';
+  }
+
+  // Audit data: mock rows matching data-plan.md section 3 payload fields.
+  const auditRows = buildMockRows();
+
+  function buildMockRows() {
+    const rows = [];
+    const now = new Date('2026-11-20T23:55:00+05:30');
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(now);
+      day.setDate(day.getDate() - i);
+      const date = day.toISOString().slice(0, 10);
+      const manual = i === 1;
+      rows.push({
+        date: date,
+        trigger: manual ? 'manual' : 'scheduled',
+        id: '7d3c2a1e-5f4b-4c8e-9a10-2b6e8f0d1c' + String(40 + i).padStart(2, '0'),
+        windowEnd: date + 'T' + (manual ? '14:30' : '23:55') + ':00+05:30',
+        screenOn: 14520 - i * 310,
+        notifications: 88 + i,
+        apps: [
+          { package_name: 'com.instagram.android', foreground_seconds: 4210 - i * 90, launch_count: 18 - i },
+          { package_name: 'com.google.android.gm', foreground_seconds: 610 + i * 20, launch_count: 5 }
+        ]
+      });
+    }
+    return rows;
+  }
+
+  function payloadFor(row) {
+    return JSON.stringify({
+      schema_version: '1.0',
+      snapshot_id: row.id,
+      trigger: row.trigger,
+      date: row.date,
+      user_id: 'P-7K3Q9X',
+      app_version: '1.0.0',
+      timezone: 'Asia/Kolkata',
+      utc_offset_minutes: 330,
+      window: { start: row.date + 'T00:00:00+05:30', end: row.windowEnd },
+      collected_at: row.windowEnd,
+      totals: {
+        screen_on_seconds: row.screenOn,
+        unlock_count: 63,
+        notification_count: row.notifications,
+        notification_source: 'measured',
+        notification_count_synthetic: false,
+        active_app_count: row.apps.length
+      },
+      apps: row.apps,
+      quality: { event_count: 412, open_sessions_closed: 1, unmatched_events: 0 }
+    }, null, 2);
+  }
+
+  function renderAudit() {
+    const list = document.getElementById('auditList');
+    list.innerHTML = '';
+    auditRows.forEach((row, index) => {
+      const el = document.createElement('div');
+      el.className = 'row';
+      el.innerHTML =
+        '<div><strong>' + row.date + '</strong> <span class="badge ' + row.trigger + '">' + row.trigger + '</span>' +
+        '<div class="meta">id ' + row.id.slice(0, 8) + '... | window end ' + row.windowEnd.slice(11, 16) + '</div></div>' +
+        '<div class="meta ok">Saved locally</div>';
+      el.onclick = () => showDetail(index);
+      list.appendChild(el);
+    });
+  }
+
+  function showDetail(index) {
+    const row = auditRows[index];
+    document.getElementById('auditDetailTitle').textContent = 'Payload: ' + row.date + ' (' + row.trigger + ')';
+    document.getElementById('auditDetail').textContent = payloadFor(row);
+    document.getElementById('auditDetailCard').style.display = '';
+  }
+
+  function closeDetail() {
+    document.getElementById('auditDetailCard').style.display = 'none';
+  }
+
+  document.getElementById('nextRun').textContent = nextRunText();
+  renderAudit();
+</script>
+
+</body>
+</html>

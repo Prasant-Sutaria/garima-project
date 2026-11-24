@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: usage-api
+  profiles:
+    default: local
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/usage}
+    username: ${DB_USERNAME:usage_api}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 3000
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+      adjust-dates-to-context-time-zone: false
+    default-property-inclusion: non_null
+  servlet:
+    multipart:
+      max-request-size: 256KB
+      max-file-size: 256KB
+  mvc:
+    problemdetails:
+      enabled: false
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-exception: false
+  max-http-request-header-size: 16KB
+
+backend:
+  admin:
+    username: ${ADMIN_USERNAME:}
+    password: ${ADMIN_PASSWORD:}
+  crypto:
+    keystore-path: ${LOCAL_KEYSTORE_PATH:./data/dev-keystore.p12}
+    keystore-password: ${LOCAL_KEYSTORE_PASSWORD:}
+  upload:
+    max-body-bytes: 262144
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

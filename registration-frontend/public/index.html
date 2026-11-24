@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Registration | Usage Publisher</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="Usage Publisher home"><span class="brand-icon" aria-hidden="true">u.</span> usage publisher</a>
+      <div class="intro">
+        <span class="eyebrow">A LITTLE ABOUT YOU</span>
+        <h1>A small step.<br>A better starting point.</h1>
+        <p>Create a test registration for the Usage Publisher app. Your activation journey starts here.</p>
+        <ol class="steps">
+          <li class="current"><span class="step-number">01</span><div><strong>Create a registration</strong><small>Tell us a little about yourself</small></div></li>
+          <li><span class="step-number">02</span><div><strong>Save your ID</strong><small>Keep it handy for app activation</small></div></li>
+          <li><span class="step-number">03</span><div><strong>Continue in the app</strong><small>Activate and set up your device separately</small></div></li>
+        </ol>
+      </div>
+      <div class="sidebar-footer"><span class="leaf" aria-hidden="true">+</span><p>Thoughtful by design.<br><span>One step at a time.</span></p></div>
+      <div class="orb orb-one" aria-hidden="true"></div><div class="orb orb-two" aria-hidden="true"></div>
+    </aside>
+
+    <main>
+      <header class="topbar"><span>REGISTRATION</span><span class="environment"><span aria-hidden="true"></span> Local development</span></header>
+      <div class="content">
+        <div class="page-heading"><span class="eyebrow">LET'S GET STARTED</span><h2>Create your registration</h2><p>A few details now. Your activation ID next.</p></div>
+        <div class="notice"><span class="notice-icon" aria-hidden="true">i</span><div><strong>A test space, not a real enrollment</strong><p>Use synthetic details only. Contact ownership is not verified. This local-only flow is unavailable in production.</p></div></div>
+        <form id="registration-form" novalidate autocomplete="off">
+          <div class="form-meta"><span>All fields are required</span><span>01 / YOUR DETAILS</span></div>
+          <fieldset id="registration-fields">
+            <legend class="sr-only">Registration details</legend>
+            <section class="form-section" aria-labelledby="personal-title">
+              <h3 id="personal-title"><span aria-hidden="true">01</span> Personal details</h3>
+              <div class="grid">
+                <div class="field full"><label for="user_name">User name</label><input id="user_name" name="user_name" type="text" maxlength="120" placeholder="e.g. Alex Example" required aria-describedby="user_name-error"><p class="field-error" id="user_name-error"></p></div>
+                <div class="field"><label for="age">Age</label><input id="age" name="age" type="number" min="0" max="120" step="1" inputmode="numeric" placeholder="e.g. 25" required aria-describedby="age-error"><p class="field-error" id="age-error"></p></div>
+                <div class="field"><label for="gender">Gender</label><input id="gender" name="gender" type="text" maxlength="64" placeholder="Describe in your own words" required aria-describedby="gender-error"><p class="field-error" id="gender-error"></p></div>
+              </div>
+            </section>
+            <section class="form-section" aria-labelledby="contact-title">
+              <h3 id="contact-title"><span aria-hidden="true">02</span> Contact details</h3>
+              <div class="grid">
+                <div class="field"><label for="mobile_number">Mobile number</label><input id="mobile_number" name="mobile_number" type="tel" inputmode="tel" maxlength="16" placeholder="+14155550123" required aria-describedby="mobile-hint mobile_number-error"><p class="hint" id="mobile-hint">Include + and country code. No spaces.</p><p class="field-error" id="mobile_number-error"></p></div>
+                <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" maxlength="254" placeholder="alex@example.test" required aria-describedby="email-error"><p class="field-error" id="email-error"></p></div>
+              </div>
+            </section>
+            <section class="form-section" aria-labelledby="activities-title">
+              <h3 id="activities-title"><span aria-hidden="true">03</span> Your everyday activities</h3>
+              <p class="section-description">What do you enjoy doing? A short description is enough.</p>
+              <div class="grid">
+                <div class="field"><label for="indoor_activity">Indoor activity</label><textarea id="indoor_activity" name="indoor_activity" maxlength="2000" rows="3" placeholder="e.g. Reading, cooking, or playing music" required aria-describedby="indoor_activity-error"></textarea><p class="field-error" id="indoor_activity-error"></p></div>
+                <div class="field"><label for="outdoor_activity">Outdoor activity</label><textarea id="outdoor_activity" name="outdoor_activity" maxlength="2000" rows="3" placeholder="e.g. Walking, gardening, or cycling" required aria-describedby="outdoor_activity-error"></textarea><p class="field-error" id="outdoor_activity-error"></p></div>
+              </div>
+            </section>
+          </fieldset>
+          <div id="form-status" class="form-status" role="status" aria-live="polite" tabindex="-1" hidden></div>
+          <div class="form-actions"><p>Your details are sent to the local backend.<br>No personal details are saved in this browser.</p><button id="submit-button" type="submit">Register <span aria-hidden="true">&rarr;</span></button></div>
+        </form>
+
+        <section id="success" class="success" aria-labelledby="success-title" tabindex="-1" hidden>
+          <div class="success-icon" aria-hidden="true">&#10003;</div><span class="eyebrow">YOUR NEXT STEP IS READY</span>
+          <h2 id="success-title">You're registered.</h2><p>Save your registration ID before leaving this page. You will need it for activation in the app.</p>
+          <div class="id-card"><span>YOUR REGISTRATION ID</span><strong id="registration-id"></strong><button id="copy-button" type="button">Copy ID</button></div>
+          <p id="copy-status" role="status"></p>
+          <div class="success-note">Registration is complete, but your device is not yet registered or authenticated. Contact ownership has not been verified and no usage data has been uploaded.</div>
+          <p class="hint">This ID is kept on this page only. Refreshing or closing it will remove the ID.</p>
+        </section>
+        <footer class="page-footer"><span>Usage Publisher</span><span>Synthetic data. Local testing only.</span></footer>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

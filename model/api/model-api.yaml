@@ -1,0 +1,54 @@
+openapi: 3.1.0
+info:
+  title: Digital-use model internal API
+  description: Internal health endpoint for the offline model component. This API
+    is for the scoring job and Spring Boot service only; the Android app never calls
+    it. No participant data is accepted.
+  contact:
+    name: Model component maintainers
+  version: 1.0.0
+servers:
+- url: /
+  description: Internal deployment, accessible only to the scoring job and Spring
+    Boot service.
+paths:
+  /api/v1/health:
+    get:
+      tags:
+      - health
+      summary: Check model component health
+      description: Returns liveness for the model component without accepting participant
+        data.
+      operationId: getModelHealth
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+components:
+  schemas:
+    HealthResponse:
+      properties:
+        status:
+          type: string
+          const: ok
+          title: Status
+        service:
+          type: string
+          const: digital-use-model
+          title: Service
+        api_version:
+          type: string
+          const: 1.0.0
+          title: Api Version
+      type: object
+      required:
+      - status
+      - service
+      - api_version
+      title: HealthResponse
+tags:
+- name: health
+  description: Non-participant service health.

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usage Publisher - Activation (mock)</title>
+<style>
+  body { font-family: Roboto, Arial, sans-serif; background: #f2f2f2; margin: 0; }
+  .app-bar { background: #1976d2; color: #fff; padding: 16px; font-size: 20px; }
+  .content { padding: 16px; max-width: 480px; margin: 0 auto; }
+  .card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+  .card h3 { margin: 0 0 8px; font-size: 16px; }
+  .note { font-size: 13px; color: #555; margin: 6px 0; }
+  .ok { color: #2e7d32; }
+  .steps { font-size: 13px; color: #555; margin-bottom: 8px; }
+  .steps strong { color: #1976d2; }
+  button { background: #1976d2; color: #fff; border: none; border-radius: 4px; padding: 10px 14px; font-size: 14px; cursor: pointer; margin-top: 6px; }
+  button.secondary { background: #607d8b; }
+  button:disabled { background: #bdbdbd; cursor: not-allowed; }
+  label { display: block; font-size: 13px; margin-top: 10px; color: #555; }
+  input, select { width: 100%; box-sizing: border-box; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+  input.code { font-size: 22px; letter-spacing: 8px; text-align: center; }
+  .error { color: #c62828; font-size: 13px; min-height: 18px; margin: 6px 0 0; }
+  .tag { display: inline-block; font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #ffe082; margin-left: 6px; vertical-align: middle; }
+</style>
+</head>
+<body>
+<div class="app-bar">Activation <span class="tag">MOCK</span></div>
+<div class="content">
+  <div class="card">
+    <h3>Welcome. Activate this app</h3>
+        <p class="note">Shown once, on first launch. Your activation ID and security code are stored only on this phone.</p>
+        <div class="steps" id="regSteps">Step <strong>1</strong> of 3: Activation ID</div>
+
+    <div id="regStep1">
+      <label for="regId">Activation ID (from your study coordinator)</label>
+      <input id="regId" placeholder="P-XXXXXX" maxlength="8">
+      <p class="error" id="regIdError"></p>
+    </div>
+
+    <div id="regStep2" style="display:none">
+      <label for="regCode">Security code (6 digits)</label>
+      <input id="regCode" class="code" type="password" inputmode="numeric" maxlength="6">
+      <label for="regCodeConfirm">Confirm security code</label>
+      <input id="regCodeConfirm" class="code" type="password" inputmode="numeric" maxlength="6">
+      <p class="error" id="regCodeError"></p>
+    </div>
+
+    <div id="regStep3" style="display:none">
+      <label for="regQuestion">Secret question (for regenerating the code)</label>
+      <select id="regQuestion">
+        <option>Name of your first school</option>
+        <option>City where you were born</option>
+        <option>Name of your first pet</option>
+        <option>Your childhood best friend's first name</option>
+      </select>
+      <label for="regAnswer">Secret answer</label>
+      <input id="regAnswer" autocomplete="off">
+      <p class="note">Answers are not case-sensitive and extra spaces are ignored.</p>
+      <p class="error" id="regAnswerError"></p>
+    </div>
+
+    <div id="regDone" class="ok" style="display:none"></div>
+
+    <div>
+      <button class="secondary" id="regBack" onclick="regBack()" style="display:none">Back</button>
+      <button id="regNext" onclick="regNext()">Next</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Mock state only. Nothing here stores data or checks a real Keystore.
+  const REG_ID_PATTERN = /^P-[A-Z0-9]{6}$/;
+  let regStep = 1;
+
+  function setRegStep(step) {
+    regStep = step;
+    document.getElementById('regStep1').style.display = step === 1 ? '' : 'none';
+    document.getElementById('regStep2').style.display = step === 2 ? '' : 'none';
+    document.getElementById('regStep3').style.display = step === 3 ? '' : 'none';
+    document.getElementById('regSteps').innerHTML = 'Step <strong>' + step + '</strong> of 3: ' +
+      ['Activation ID', 'Security code', 'Secret question'][step - 1];
+    document.getElementById('regBack').style.display = step > 1 ? '' : 'none';
+    document.getElementById('regNext').textContent = step === 3 ? 'Finish' : 'Next';
+  }
+
+  function regBack() { setRegStep(regStep - 1); }
+
+  function regNext() {
+    if (regStep === 1) {
+      const id = document.getElementById('regId').value.trim().toUpperCase();
+      const err = document.getElementById('regIdError');
+      if (!REG_ID_PATTERN.test(id)) { err.textContent = 'Enter the ID in the format P-XXXXXX.'; return; }
+      err.textContent = '';
+      document.getElementById('regId').value = id;
+      setRegStep(2);
+    } else if (regStep === 2) {
+      const code = document.getElementById('regCode').value;
+      const confirm = document.getElementById('regCodeConfirm').value;
+      const err = document.getElementById('regCodeError');
+      if (!/^\d{6}$/.test(code)) { err.textContent = 'The security code must be exactly 6 digits.'; return; }
+      if (code !== confirm) { err.textContent = 'The two codes do not match.'; return; }
+      err.textContent = '';
+      setRegStep(3);
+    } else {
+      const answer = document.getElementById('regAnswer').value.trim().toLowerCase().replace(/\s+/g, ' ');
+      const err = document.getElementById('regAnswerError');
+      if (!answer) { err.textContent = 'Enter an answer to the secret question.'; return; }
+      err.textContent = '';
+      ['regSteps', 'regStep1', 'regStep3', 'regBack', 'regNext'].forEach(id => document.getElementById(id).style.display = 'none');
+      const done = document.getElementById('regDone');
+      done.style.display = '';
+      done.textContent = 'Activation complete (mock). Usage publishing is set up. The security code is now required to open the app.';
+    }
+  }
+
+  setRegStep(1);
+</script>
+</body>
+</html>

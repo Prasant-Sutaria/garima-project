@@ -1,0 +1,699 @@
+---
+openapi: "3.1.0"
+info:
+  title: "Usage Publisher API"
+  description: "Local/test contract for the mobile usage publisher and study administrators.\
+    \ Production KMS, TLS, and staff identity-provider integration are not configured."
+  version: "v1"
+servers:
+- url: "http://localhost"
+  description: "Generated server url"
+paths:
+  /api/v1/usage/snapshots:
+    post:
+      tags:
+      - "app"
+      summary: "Store an idempotent usage snapshot"
+      description: "Maximum request size is 256 KiB. Retries with the same snapshot\
+        \ ID and canonical body are safe."
+      operationId: "uploadSnapshot"
+      parameters:
+      - name: "Idempotency-Key"
+        in: "header"
+        description: "Must exactly equal snapshot_id."
+        required: true
+        schema:
+          type: "string"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UsageSnapshot"
+        required: true
+      responses:
+        "200":
+          description: "Same snapshot was already stored"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+        "201":
+          description: "New snapshot stored"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+        "400":
+          description: "Invalid idempotency header"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: "Invalid or expired token"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: "Device or registration is inactive"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: "Snapshot ID or scheduled date conflict"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "413":
+          description: "Request exceeds 256 KiB"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "422":
+          description: "Invalid payload"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: "Rate limit exceeded"
+          headers:
+            Retry-After:
+              description: "Seconds until requests may resume"
+              style: "simple"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: "Internal error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      security:
+      - deviceBearer: []
+  /api/v1/registrations:
+    post:
+      tags:
+      - "app"
+      summary: "Create a local self-registration"
+      description: "Local development only. Contact details are not verified; do not\
+        \ use real participant data."
+      operationId: "registerUser"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SelfRegistrationRequest"
+        required: true
+      responses:
+        "201":
+          description: "Registration created"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SelfRegistrationResponse"
+        "409":
+          description: "A submitted contact is already registered"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "413":
+          description: "Request exceeds 256 KiB"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "422":
+          description: "Invalid request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: "Rate limit exceeded"
+          headers:
+            Retry-After:
+              description: "Seconds until requests may resume"
+              style: "simple"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/v1/devices/register:
+    post:
+      tags:
+      - "app"
+      summary: "Register a P-256 device public key"
+      operationId: "registerDevice"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceRegistrationRequest"
+        required: true
+      responses:
+        "200":
+          description: "The same active key was already registered"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceResponse"
+        "201":
+          description: "Device registered"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceResponse"
+        "400":
+          description: "Invalid public key"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: "Registration is unknown or inactive"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: "A different active device already exists"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "422":
+          description: "Invalid key or request"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "413":
+          description: "Request exceeds 256 KiB"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/v1/auth/token:
+    post:
+      tags:
+      - "app"
+      summary: "Verify signed nonce and issue a short-lived access token"
+      description: "The signature covers usage-auth-v1, nonce, registration_id, and\
+        \ timestamp separated by LF."
+      operationId: "issueToken"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TokenRequest"
+        required: true
+      responses:
+        "200":
+          description: "Access token issued"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401":
+          description: "Invalid or replayed authentication proof"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: "Rate limit exceeded"
+          headers:
+            Retry-After:
+              description: "Seconds until requests may resume"
+              style: "simple"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "413":
+          description: "Request exceeds 256 KiB"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/v1/auth/challenge:
+    post:
+      tags:
+      - "app"
+      summary: "Issue a single-use device authentication nonce"
+      operationId: "issueChallenge"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChallengeRequest"
+        required: true
+      responses:
+        "200":
+          description: "Nonce and server time"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChallengeResponse"
+        "401":
+          description: "Registration or device is not active"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: "Rate limit exceeded"
+          headers:
+            Retry-After:
+              description: "Seconds until requests may resume"
+              style: "simple"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "413":
+          description: "Request exceeds 256 KiB"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/v1/usage/snapshots/{snapshot_id}:
+    get:
+      tags:
+      - "app"
+      summary: "Read the status of an owned snapshot"
+      operationId: "getSnapshotStatus"
+      parameters:
+      - name: "snapshot_id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+          format: "uuid"
+      responses:
+        "200":
+          description: "Snapshot status"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SnapshotStatus"
+        "401":
+          description: "Invalid or expired token"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: "Device is inactive"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: "Snapshot not found for this participant"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      security:
+      - deviceBearer: []
+  /api/v1/health:
+    get:
+      tags:
+      - "health"
+      summary: "Check API readiness"
+      operationId: "health"
+      responses:
+        "200":
+          description: "Database and key provider are available"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                additionalProperties:
+                  type: "string"
+        "503":
+          description: "Service unavailable"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /.well-known/jwks.json:
+    get:
+      tags:
+      - "app"
+      summary: "Publish active token verification keys"
+      operationId: "getJwks"
+      responses:
+        "200":
+          description: "Public EC signing keys"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                additionalProperties:
+                  type: "array"
+                  items:
+                    type: "object"
+                    additionalProperties:
+                      type: "string"
+components:
+  schemas:
+    AppUsage:
+      type: "object"
+      properties:
+        package_name:
+          type: "string"
+          maxLength: 255
+          minLength: 0
+        foreground_seconds:
+          type: "integer"
+          format: "int32"
+          minimum: 0
+        launch_count:
+          type: "integer"
+          format: "int32"
+          minimum: 0
+      required:
+      - "foreground_seconds"
+      - "launch_count"
+      - "package_name"
+    Quality:
+      type: "object"
+      properties:
+        event_count:
+          type: "integer"
+          format: "int32"
+          minimum: 0
+        open_sessions_closed:
+          type: "integer"
+          format: "int32"
+          minimum: 0
+        unmatched_events:
+          type: "integer"
+          format: "int32"
+          minimum: 0
+      required:
+      - "event_count"
+      - "open_sessions_closed"
+      - "unmatched_events"
+    Totals:
+      type: "object"
+      properties:
+        screen_on_seconds:
+          type: "integer"
+          format: "int32"
+          minimum: 0
+        unlock_count:
+          type: "integer"
+          format: "int32"
+          minimum: 0
+        notification_count:
+          type: "integer"
+          format: "int32"
+          minimum: 0
+        notification_source:
+          type: "string"
+          enum:
+          - "measured"
+          - "synthetic"
+          - "unavailable"
+        notification_count_synthetic:
+          type: "boolean"
+        active_app_count:
+          type: "integer"
+          format: "int32"
+          minimum: 0
+      required:
+      - "active_app_count"
+      - "notification_count_synthetic"
+      - "notification_source"
+      - "screen_on_seconds"
+    UsageSnapshot:
+      type: "object"
+      properties:
+        schema_version:
+          type: "string"
+          minLength: 1
+          pattern: "1\\.0"
+        snapshot_id:
+          type: "string"
+          format: "uuid"
+        trigger:
+          type: "string"
+          enum:
+          - "scheduled"
+          - "manual"
+        date:
+          type: "string"
+          format: "date"
+        user_id:
+          type: "string"
+          minLength: 1
+          pattern: "P-[A-Z0-9]{6}"
+        app_version:
+          type: "string"
+          maxLength: 32
+          minLength: 0
+        timezone:
+          type: "string"
+          maxLength: 64
+          minLength: 0
+        utc_offset_minutes:
+          type: "integer"
+          format: "int32"
+          maximum: 840
+          minimum: -840
+        window:
+          $ref: "#/components/schemas/UsageWindow"
+        collected_at:
+          type: "string"
+          format: "date-time"
+        totals:
+          $ref: "#/components/schemas/Totals"
+        apps:
+          type: "array"
+          items:
+            $ref: "#/components/schemas/AppUsage"
+          maxItems: 500
+          minItems: 0
+        quality:
+          $ref: "#/components/schemas/Quality"
+      required:
+      - "app_version"
+      - "apps"
+      - "collected_at"
+      - "date"
+      - "quality"
+      - "schema_version"
+      - "snapshot_id"
+      - "timezone"
+      - "totals"
+      - "trigger"
+      - "user_id"
+      - "utc_offset_minutes"
+      - "window"
+    UsageWindow:
+      type: "object"
+      properties:
+        start:
+          type: "string"
+          format: "date-time"
+        end:
+          type: "string"
+          format: "date-time"
+      required:
+      - "end"
+      - "start"
+    ApiError:
+      type: "object"
+      description: "Generic error response without internal or participant data"
+      properties:
+        code:
+          type: "string"
+        message:
+          type: "string"
+        request_id:
+          type: "string"
+    UploadResponse:
+      type: "object"
+      properties:
+        snapshot_id:
+          type: "string"
+          format: "uuid"
+        status:
+          type: "string"
+        received_at:
+          type: "string"
+          format: "date-time"
+    SelfRegistrationRequest:
+      type: "object"
+      properties:
+        user_name:
+          type: "string"
+          maxLength: 120
+          minLength: 0
+        mobile_number:
+          type: "string"
+          minLength: 1
+          pattern: "\\+[1-9][0-9]{1,14}"
+        email:
+          type: "string"
+          maxLength: 254
+          minLength: 0
+        age:
+          type: "integer"
+          format: "int32"
+          maximum: 120
+          minimum: 0
+        gender:
+          type: "string"
+          maxLength: 64
+          minLength: 0
+        indoor_activity:
+          type: "string"
+          maxLength: 2000
+          minLength: 0
+        outdoor_activity:
+          type: "string"
+          maxLength: 2000
+          minLength: 0
+      required:
+      - "age"
+      - "email"
+      - "gender"
+      - "indoor_activity"
+      - "mobile_number"
+      - "outdoor_activity"
+      - "user_name"
+    SelfRegistrationResponse:
+      type: "object"
+      properties:
+        registration_id:
+          type: "string"
+    DeviceRegistrationRequest:
+      type: "object"
+      properties:
+        registration_id:
+          type: "string"
+          minLength: 1
+          pattern: "P-[A-Z0-9]{6}"
+        public_key:
+          $ref: "#/components/schemas/PublicKeyJwk"
+        app_version:
+          type: "string"
+          maxLength: 32
+          minLength: 0
+      required:
+      - "app_version"
+      - "public_key"
+      - "registration_id"
+    PublicKeyJwk:
+      type: "object"
+      properties:
+        kty:
+          type: "string"
+          minLength: 1
+          pattern: "EC"
+        crv:
+          type: "string"
+          minLength: 1
+          pattern: "P-256"
+        x:
+          type: "string"
+          minLength: 1
+          pattern: "[A-Za-z0-9_-]{43}"
+        "y":
+          type: "string"
+          minLength: 1
+          pattern: "[A-Za-z0-9_-]{43}"
+      required:
+      - "crv"
+      - "kty"
+      - "x"
+      - "y"
+    DeviceResponse:
+      type: "object"
+      properties:
+        device_id:
+          type: "string"
+        status:
+          type: "string"
+    TokenRequest:
+      type: "object"
+      properties:
+        registration_id:
+          type: "string"
+          minLength: 1
+          pattern: "P-[A-Z0-9]{6}"
+        nonce:
+          type: "string"
+          minLength: 1
+          pattern: "[A-Za-z0-9_-]{43}"
+        timestamp:
+          type: "string"
+          minLength: 1
+        signature:
+          type: "string"
+          maxLength: 160
+          minLength: 0
+      required:
+      - "nonce"
+      - "registration_id"
+      - "signature"
+      - "timestamp"
+    TokenResponse:
+      type: "object"
+      properties:
+        access_token:
+          type: "string"
+        token_type:
+          type: "string"
+        expires_in:
+          type: "integer"
+          format: "int32"
+    ChallengeRequest:
+      type: "object"
+      properties:
+        registration_id:
+          type: "string"
+          minLength: 1
+          pattern: "P-[A-Z0-9]{6}"
+      required:
+      - "registration_id"
+    ChallengeResponse:
+      type: "object"
+      properties:
+        nonce:
+          type: "string"
+        expires_at:
+          type: "string"
+        server_time:
+          type: "string"
+    SnapshotStatus:
+      type: "object"
+      properties:
+        snapshot_id:
+          type: "string"
+          format: "uuid"
+        status:
+          type: "string"
+        received_at:
+          type: "string"
+          format: "date-time"
+  securitySchemes:
+    deviceBearer:
+      type: "http"
+      scheme: "bearer"
+      bearerFormat: "JWT"
+    adminBasic:
+      type: "http"
+      scheme: "basic"
