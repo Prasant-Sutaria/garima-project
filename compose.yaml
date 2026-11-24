@@ -4,15 +4,15 @@ services:
   postgres:
     image: postgres:16.4
     environment:
-      POSTGRES_DB: usage
-      POSTGRES_USER: usage_api
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in your shell}
+      POSTGRES_DB: ${POSTGRES_DB:-usage}
+      POSTGRES_USER: ${POSTGRES_USER:-usage_api}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in root .env}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U usage_api -d usage"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-usage_api} -d ${POSTGRES_DB:-usage}"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -23,16 +23,16 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: local
-      DB_URL: jdbc:postgresql://postgres:5432/usage
-      DB_USERNAME: usage_api
-      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in your shell}
-      ADMIN_USERNAME: ${ADMIN_USERNAME:?Set ADMIN_USERNAME in your shell}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in your shell}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      DB_URL: ${DB_URL:-jdbc:postgresql://postgres:5432/usage}
+      DB_USERNAME: ${POSTGRES_USER:-usage_api}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in root .env}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:?Set ADMIN_USERNAME in root .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in root .env}
       LOCAL_KEYSTORE_PATH: /app/data/dev-keystore.p12
-      LOCAL_KEYSTORE_PASSWORD: ${LOCAL_KEYSTORE_PASSWORD:?Set LOCAL_KEYSTORE_PASSWORD in your shell}
+      LOCAL_KEYSTORE_PASSWORD: ${LOCAL_KEYSTORE_PASSWORD:?Set LOCAL_KEYSTORE_PASSWORD in root .env}
     ports:
-      - "8080:8080"
+      - "${API_HOST_PORT:-8080}:8080"
     volumes:
       - local_keys:/app/data
 
@@ -44,7 +44,7 @@ services:
       CONTAINER_MODE: "true"
       BACKEND_URL: ${BACKEND_URL:-http://api:8080}
     ports:
-      - "127.0.0.1:3000:3000"
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
 
 volumes:
   postgres_data:
