@@ -105,3 +105,9 @@ participant database. They cover validation boundaries, response classification,
 retry timing, exact proxy integration, and upstream failures. To verify against
 the real backend, start it first and submit a unique synthetic contact through
 the page; a successful registration displays its returned activation ID.
+
+Browser tests use Playwright (`npm.cmd run test:e2e`, after running
+`npx.cmd playwright install chromium` once). They start the real page server
+against a stub backend that enforces uniqueness, then check that the UI rejects a
+duplicate email or mobile number and shows no registration ID. They live in
+`e2e/`, separate from the `node --test` suite.

@@ -140,6 +140,41 @@ test('proxy rejects oversized and cross-origin requests before forwarding', asyn
   })).status, 403);
 });
 
+test('a duplicate email or mobile is rejected with 409 and no registration ID', async (t) => {
+  const registeredContacts = new Set();
+  const stub = http.createServer(async (req, res) => {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const body = JSON.parse(Buffer.concat(chunks));
+    const contacts = [body.email.trim().toLowerCase(), body.mobile_number];
+    res.setHeader('Content-Type', 'application/json');
+    if (contacts.some((contact) => registeredContacts.has(contact))) {
+      res.writeHead(409);
+      res.end(JSON.stringify({ code: 'registration_exists' }));
+      return;
+    }
+    contacts.forEach((contact) => registeredContacts.add(contact));
+    res.writeHead(201);
+    res.end(JSON.stringify({ registration_id: 'P-ABC123' }));
+  });
+  const backendUrl = await listen(stub, t);
+  const origin = await listen(createApp({ backendUrl }), t);
+  const submit = (details) => fetch(`${origin}/api/v1/registrations`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...valid, age: 25, ...details }),
+  });
+
+  const first = await submit({});
+  assert.equal(interpretResponse(first.status, await first.json()).id, 'P-ABC123');
+
+  for (const duplicate of [{ email: 'PERSON@example.test' }, { email: 'other@example.test' }]) {
+    const response = await submit(duplicate);
+    const result = interpretResponse(response.status, await response.json());
+    assert.equal(response.status, 409);
+    assert.equal(result.id, undefined);
+    assert.ok(result.message);
+  }
+});
+
 test('an upstream timeout yields an explicit unknown outcome and is not retried', async (t) => {
   let requests = 0;
   const backendUrl = await listen(http.createServer(() => { requests++; }), t);
