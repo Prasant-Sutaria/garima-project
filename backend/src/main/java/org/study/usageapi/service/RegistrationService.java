@@ -126,14 +126,28 @@ public class RegistrationService {
 
     @Transactional
     public void updateStatus(String registrationId, String status, String actor, String requestId) {
-        if (registrations.lockStatus(registrationId).isEmpty()) {
-            throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "The requested resource was not found.");
+        String current = registrations.lockStatus(registrationId).orElseThrow(() ->
+                new ApiException(HttpStatus.NOT_FOUND, "not_found", "The requested resource was not found."));
+        if (!current.equals(status) && !isAllowedAdminTransition(registrationId, current, status)) {
+            throw new ApiException(HttpStatus.CONFLICT, "invalid_status_transition",
+                    "The registration cannot change from " + current + " to " + status + ".");
         }
         registrations.updateStatus(registrationId, status);
-        if ("withdrawn".equals(status)) {
+        if ("deactivated".equals(status)) {
             devices.findActiveByRegistration(registrationId)
                     .ifPresent(device -> devices.revokeActive(device.id()));
         }
         audit.append(actor, "registration.status.update", registrationId, requestId, "success");
+    }
+
+    // Only device registration activates a new registration. Reactivation restores the status held
+    // before deactivation, which is "activated" exactly when a device was ever registered.
+    private boolean isAllowedAdminTransition(String registrationId, String current, String target) {
+        return switch (target) {
+            case "deactivated" -> true;
+            case "activated" -> "deactivated".equals(current) && devices.hasAnyDevice(registrationId);
+            case "not_registered" -> "deactivated".equals(current) && !devices.hasAnyDevice(registrationId);
+            default -> false;
+        };
     }
 }

@@ -29,7 +29,7 @@ public class DeviceService {
         String status = registrations.lockStatus(request.registrationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "forbidden",
                         "This registration is not eligible."));
-        if (!"active".equals(status)) {
+        if (!"not_registered".equals(status) && !"activated".equals(status)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "forbidden", "This registration is not eligible.");
         }
         try {
@@ -49,6 +49,7 @@ public class DeviceService {
 
         UUID deviceId = UUID.randomUUID();
         devices.insert(deviceId, request.registrationId(), request.publicKey(), request.appVersion());
+        registrations.activate(request.registrationId());
         return new DeviceRegistrationResult(deviceId, false);
     }
 

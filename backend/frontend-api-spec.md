@@ -21,8 +21,8 @@ For the local self-registration screen and its UI states, see the [registration 
 |---|---|---|---|
 | GET | `/api/v1/health` | Public | 200 readiness |
 | POST | `/api/v1/registrations` | Public, local profile only | 201 registration ID |
-| POST | `/api/v1/devices/register` | Public, active registration required | 201 new; 200 same key |
-| POST | `/api/v1/auth/challenge` | Public, active registered device required | 200 nonce |
+| POST | `/api/v1/devices/register` | Public, `not_registered` or `activated` registration required | 201 new; 200 same key |
+| POST | `/api/v1/auth/challenge` | Public, `activated` registration with an active device required | 200 nonce |
 | POST | `/api/v1/auth/token` | Public, signed nonce required | 200 access token |
 | GET | `/.well-known/jwks.json` | Public | 200 public signing keys |
 | POST | `/api/v1/usage/snapshots` | Bearer token | 201 stored; 200 duplicate |
@@ -58,7 +58,7 @@ The backend encrypts submitted details and uses keyed contact fingerprints for u
 
 Device registration is separate from the app's local activation and lock. The security code and secret answer must never be sent to the server.
 
-1. A study administrator imports an active registration (or the local-only test enrollment creates one). For first upload, generate an EC P-256 key pair in Android Keystore. Keep the private key non-exportable and available to background work while the phone is locked.
+1. A study administrator imports a registration (or the local-only test enrollment creates one); it starts as `not_registered`. For first upload, generate an EC P-256 key pair in Android Keystore. Keep the private key non-exportable and available to background work while the phone is locked.
 2. Register its public JWK. Save the key reference and use the same key on subsequent attempts.
 3. Request a challenge; sign and exchange it for a token as described below.
 4. Send the token as `Authorization: Bearer <access_token>` for upload and status. Keep the token in memory, not in persistent storage or logs.
@@ -87,7 +87,7 @@ Device registration is separate from the app's local activation and lock. The se
 {"device_id":"4cd7d26c-d09a-4b19-98de-e72c041cc443","status":"active"}
 ```
 
-201 creates a device; 200 returns the existing device for the same key. An unknown or inactive registration returns 403; a different active key returns 409 `device_exists`. Invalid key material can return 400 `invalid_key`, and invalid request format returns 422. There is no implemented self-service reset endpoint for a lost key or a replacement device.
+201 creates a device and, on the first device, moves the registration from `not_registered` to `activated`; 200 returns the existing device for the same key. An unknown or `deactivated` registration returns 403; a different active key returns 409 `device_exists`. Invalid key material can return 400 `invalid_key`, and invalid request format returns 422. There is no implemented self-service reset endpoint for a lost key or a replacement device.
 
 ### Challenge and token
 
@@ -232,10 +232,18 @@ The list must contain 1-500 entries; IDs must be unique and not already imported
 `PATCH /api/v1/admin/registrations/P-ABC123`
 
 ```json
-{"status":"withdrawn"}
+{"status":"deactivated"}
 ```
 
-Accepted values are `active` and `withdrawn`. Success is 204 with no body; an unknown registration is 404. Withdrawal prevents authentication and uploads and revokes the active device. Reactivating a registration does not restore that revoked device; a device must register again. Withdrawal is not a data-deletion endpoint.
+A registration's status progresses `not_registered` → `activated` → `deactivated`:
+
+| Status | Meaning | How it is reached |
+|---|---|---|
+| `not_registered` | Created (self-registration or admin import); no device yet. It cannot authenticate or upload. | Initial status |
+| `activated` | A device has been registered. Authentication and uploads are allowed. | Automatically, on the first successful device registration. Admins cannot set it directly. |
+| `deactivated` | Authentication, uploads, and device registration are blocked; the active device is revoked. | Admin, from `not_registered` or `activated` |
+
+Accepted values are `not_registered`, `activated`, and `deactivated`. An admin can reactivate a deactivated registration only by restoring its previous status: `activated` if a device was ever registered, otherwise `not_registered`. Any other change returns 409 `invalid_status_transition`; setting the current status again is a no-op 204. Success is 204 with no body; an unknown registration is 404. Reactivation does not restore the revoked device; a device must register again. Deactivation is not a data-deletion endpoint.
 
 ## Errors and UI behavior
 
@@ -264,5 +272,5 @@ Use the status and stable `code` for control flow, show a non-sensitive message,
 - Keep the API base URL configurable; use the OpenAPI schemas for client models, but implement the signing protocol and semantic validations above explicitly.
 - Show local activation, permissions, scheduling, and local audit independently of network availability. In Phase 2 distinguish pending, uploaded (including duplicate), and failed upload states; only claim an upload after a successful server response or status check.
 - Follow the app plan's connected-network worker, backoff, 24-hour retry window, and local retention rules. A pending upload must not be pruned.
-- Test successful registration and same-key retry, rejected replacement key, nonce expiry/replay and bad signatures, token expiry, upload retries and conflicts, validation errors, rate limits, offline recovery, withdrawal, and owned/not-found status.
+- Test successful registration and same-key retry, rejected replacement key, nonce expiry/replay and bad signatures, token expiry, upload retries and conflicts, validation errors, rate limits, offline recovery, deactivation, and owned/not-found status.
 - Recommendation cards in the mock remain illustrative; no recommendation API is currently available.

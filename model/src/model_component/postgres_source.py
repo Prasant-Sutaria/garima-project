@@ -1,7 +1,7 @@
 """Read-only loaders for PostgreSQL.
 
 Real daily rows: the query returns no registration identifiers; participants are numbered
-within the result set, and withdrawn registrations and manual snapshots are excluded.
+within the result set, and only activated registrations' scheduled snapshots are included.
 Synthetic hourly rows come from the separate `synthetic` schema and are tagged
 source=synthetic; the two sources are never combined.
 """
@@ -24,7 +24,7 @@ SELECT DENSE_RANK() OVER (ORDER BY s.registration_id) AS participant_index,
 FROM usage_snapshots AS s
 JOIN registry.registrations AS r ON r.registration_id = s.registration_id
 WHERE s."trigger" = 'scheduled'
-  AND r.status = 'active'
+  AND r.status = 'activated'
 ORDER BY participant_index, usage_date
 """
 

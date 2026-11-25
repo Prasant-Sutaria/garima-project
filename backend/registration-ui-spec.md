@@ -56,7 +56,7 @@ Example request using synthetic data:
 {"registration_id":"P-ABC123"}
 ```
 
-The ID matches `P-[A-Z0-9]{6}`. It identifies an active registration for the existing device registration flow. A successful response does **not** mean the device is registered or authenticated, contact ownership is verified, or any usage data has been uploaded.
+The ID matches `P-[A-Z0-9]{6}`. It identifies a new registration with status `not_registered`; it becomes `activated` when the app registers a device with it. A successful response does **not** mean the device is registered or authenticated, contact ownership is verified, or any usage data has been uploaded.
 
 The backend encrypts submitted data. It compares email case-insensitively and canonical E.164 mobile numbers exactly; a duplicate of either among self-registrations is rejected. Admin-imported registrations contain no contact details and cannot be checked for contact duplicates. The selected scheme is stored unencrypted in `registry.enrollment_details.scheme_months` (references `registry.schemes`, which is managed by seed data and has a `price` column for future charging). The profession is also stored unencrypted, in `registry.enrollment_details.profession`, so read-only analysis can group usage by profession.
 

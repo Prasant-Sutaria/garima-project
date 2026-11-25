@@ -254,17 +254,21 @@ class RestAssuredPostgresIntegrationTest {
 
     @Test
     void adminStatusChangeValidatesAndRequiresAuthentication() throws Exception {
-        request().contentType("application/json").body(Map.of("status", "withdrawn"))
+        request().contentType("application/json").body(Map.of("status", "deactivated"))
                 .patch("/api/v1/admin/registrations/{id}", registrationId).then().statusCode(401);
         admin().contentType("application/json").body(Map.of("status", "invalid"))
                 .patch("/api/v1/admin/registrations/{id}", registrationId).then().statusCode(422);
-        admin().contentType("application/json").body(Map.of("status", "active"))
+        admin().contentType("application/json").body(Map.of("status", "deactivated"))
                 .patch("/api/v1/admin/registrations/{id}", newRegistrationId()).then().statusCode(404);
+        admin().contentType("application/json").body(Map.of("status", "not_registered"))
+                .patch("/api/v1/admin/registrations/{id}", registrationId).then().statusCode(409)
+                .body("code", equalTo("invalid_status_transition"));
 
         String token = authenticate(registrationId, deviceKey);
-        admin().contentType("application/json").body(Map.of("status", "withdrawn"))
+        admin().contentType("application/json").body(Map.of("status", "deactivated"))
                 .patch("/api/v1/admin/registrations/{id}", registrationId).then().statusCode(204)
                 .body(equalTo(""));
+        assertEquals("deactivated", registrationStatus(registrationId));
         request().auth().oauth2(token).get("/api/v1/usage/snapshots/{id}", UUID.randomUUID())
                 .then().statusCode(403);
         UUID snapshotId = UUID.randomUUID();
@@ -273,11 +277,43 @@ class RestAssuredPostgresIntegrationTest {
                 .post("/api/v1/auth/challenge").then().statusCode(401);
         registerDevice(deviceKey).then().statusCode(403);
 
-        admin().contentType("application/json").body(Map.of("status", "active"))
+        admin().contentType("application/json").body(Map.of("status", "not_registered"))
+                .patch("/api/v1/admin/registrations/{id}", registrationId).then().statusCode(409);
+        admin().contentType("application/json").body(Map.of("status", "activated"))
                 .patch("/api/v1/admin/registrations/{id}", registrationId).then().statusCode(204);
+        assertEquals("activated", registrationStatus(registrationId));
         request().auth().oauth2(token).get("/api/v1/usage/snapshots/{id}", UUID.randomUUID())
                 .then().statusCode(403);
         registerDevice(generateKey()).then().statusCode(201);
+    }
+
+    @Test
+    void registrationStartsNotRegisteredAndActivatesOnFirstDevice() throws Exception {
+        String newId = importParticipant();
+        assertEquals("not_registered", registrationStatus(newId));
+        request().contentType("application/json").body(Map.of("registration_id", newId))
+                .post("/api/v1/auth/challenge").then().statusCode(401);
+        admin().contentType("application/json").body(Map.of("status", "activated"))
+                .patch("/api/v1/admin/registrations/{id}", newId).then().statusCode(409);
+
+        KeyPair key = generateKey();
+        registerDevice(newId, key).then().statusCode(201);
+        assertEquals("activated", registrationStatus(newId));
+        authenticate(newId, key);
+
+        String unusedId = importParticipant();
+        admin().contentType("application/json").body(Map.of("status", "deactivated"))
+                .patch("/api/v1/admin/registrations/{id}", unusedId).then().statusCode(204);
+        admin().contentType("application/json").body(Map.of("status", "activated"))
+                .patch("/api/v1/admin/registrations/{id}", unusedId).then().statusCode(409);
+        admin().contentType("application/json").body(Map.of("status", "not_registered"))
+                .patch("/api/v1/admin/registrations/{id}", unusedId).then().statusCode(204);
+        assertEquals("not_registered", registrationStatus(unusedId));
+    }
+
+    private String registrationStatus(String id) {
+        return jdbc.queryForObject("SELECT status FROM registry.registrations WHERE registration_id = ?",
+                String.class, id);
     }
 
     @Test

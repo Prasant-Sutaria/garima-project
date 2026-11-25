@@ -61,8 +61,11 @@ paths:
       tags:
       - "admin"
       summary: "Update registration status"
-      description: "Changing status to withdrawn immediately prevents further authentication\
-        \ and uploads."
+      description: "Statuses progress not_registered -> activated -> deactivated.\
+        \ A registration becomes activated only when its first device registers. Deactivation\
+        \ immediately prevents further authentication and uploads and revokes the\
+        \ active device. Reactivation restores the previous status: activated if a\
+        \ device was ever registered, otherwise not_registered."
       operationId: "adminUpdateRegistration"
       parameters:
       - name: "registration_id"
@@ -87,6 +90,12 @@ paths:
                 $ref: "#/components/schemas/ApiError"
         "404":
           description: "Registration not found"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: "Status transition not allowed"
           content:
             application/json:
               schema:
@@ -159,8 +168,12 @@ components:
       properties:
         status:
           type: "string"
+          enum:
+          - "not_registered"
+          - "activated"
+          - "deactivated"
           minLength: 1
-          pattern: "active|withdrawn"
+          pattern: "not_registered|activated|deactivated"
       required:
       - "status"
   securitySchemes:

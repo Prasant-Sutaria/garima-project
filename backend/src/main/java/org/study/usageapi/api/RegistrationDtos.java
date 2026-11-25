@@ -55,6 +55,7 @@ public final class RegistrationDtos {
     }
 
     public record StatusRequest(
-            @NotBlank @Pattern(regexp = "active|withdrawn") String status) {
+            @NotBlank @Pattern(regexp = "not_registered|activated|deactivated")
+            @Schema(allowableValues = {"not_registered", "activated", "deactivated"}) String status) {
     }
 }

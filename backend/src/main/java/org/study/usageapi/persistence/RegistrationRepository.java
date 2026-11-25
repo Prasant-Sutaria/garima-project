@@ -80,4 +80,11 @@ public class RegistrationRepository {
         return jdbc.update("UPDATE registry.registrations SET status = ? WHERE registration_id = ?",
                 status, registrationId);
     }
+
+    public int activate(String registrationId) {
+        return jdbc.update("""
+                UPDATE registry.registrations SET status = 'activated'
+                WHERE registration_id = ? AND status = 'not_registered'
+                """, registrationId);
+    }
 }

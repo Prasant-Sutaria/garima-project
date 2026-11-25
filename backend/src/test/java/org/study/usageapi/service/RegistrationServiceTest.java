@@ -74,4 +74,55 @@ class RegistrationServiceTest {
         assertEquals("invalid_scheme", exception.code());
         verify(registrations, never()).insertGenerated(anyString(), any(), any(), any(), anyString());
     }
+
+    @Test
+    void adminStatusChangesFollowTheLifecycle() {
+        // current status, target status, device ever registered, allowed
+        Object[][] cases = {
+                {"not_registered", "deactivated", false, true},
+                {"activated", "deactivated", true, true},
+                {"deactivated", "activated", true, true},
+                {"deactivated", "not_registered", false, true},
+                {"activated", "activated", true, true},
+                {"not_registered", "activated", false, false},
+                {"activated", "not_registered", true, false},
+                {"deactivated", "activated", false, false},
+                {"deactivated", "not_registered", true, false},
+        };
+        for (Object[] testCase : cases) {
+            var registrations = mock(RegistrationRepository.class);
+            var devices = mock(DeviceRepository.class);
+            when(registrations.lockStatus("P-AAAAAA")).thenReturn(java.util.Optional.of((String) testCase[0]));
+            when(devices.hasAnyDevice("P-AAAAAA")).thenReturn((Boolean) testCase[2]);
+            var service = new RegistrationService(registrations, devices, mock(AuditRepository.class),
+                    mock(KeyProvider.class), new ObjectMapper(), new SecureRandom());
+            String label = testCase[0] + " -> " + testCase[1];
+            if ((Boolean) testCase[3]) {
+                service.updateStatus("P-AAAAAA", (String) testCase[1], "admin", "request-id");
+                verify(registrations, times(1)).updateStatus("P-AAAAAA", (String) testCase[1]);
+            } else {
+                var exception = assertThrows(ApiException.class,
+                        () -> service.updateStatus("P-AAAAAA", (String) testCase[1], "admin", "request-id"), label);
+                assertEquals("invalid_status_transition", exception.code(), label);
+                assertEquals(409, exception.status().value(), label);
+                verify(registrations, never()).updateStatus(anyString(), anyString());
+            }
+        }
+    }
+
+    @Test
+    void deactivationRevokesTheActiveDevice() {
+        var registrations = mock(RegistrationRepository.class);
+        var devices = mock(DeviceRepository.class);
+        var deviceId = java.util.UUID.randomUUID();
+        when(registrations.lockStatus("P-AAAAAA")).thenReturn(java.util.Optional.of("activated"));
+        when(devices.findActiveByRegistration("P-AAAAAA")).thenReturn(java.util.Optional.of(
+                new DeviceRepository.Device(deviceId, "P-AAAAAA", "{}", "1.0.0", "active")));
+        var service = new RegistrationService(registrations, devices, mock(AuditRepository.class),
+                mock(KeyProvider.class), new ObjectMapper(), new SecureRandom());
+
+        service.updateStatus("P-AAAAAA", "deactivated", "admin", "request-id");
+
+        verify(devices, times(1)).revokeActive(deviceId);
+    }
 }

@@ -44,7 +44,7 @@ For frontend generation and integration, see the [frontend API specification](./
 | `POST /api/v1/registrations` | Public self-registration, local profile only |
 | `POST /api/v1/admin/registrations` | HTTP Basic local administrator |
 | `PATCH /api/v1/admin/registrations/{registration_id}` | HTTP Basic local administrator |
-| `POST /api/v1/devices/register` | Public; an active registration is required |
+| `POST /api/v1/devices/register` | Public; a `not_registered` or `activated` registration is required. The first device moves the registration to `activated`. |
 | `POST /api/v1/auth/challenge` | Public; rate-limited, active device required |
 | `POST /api/v1/auth/token` | Public; one-time signed nonce |
 | `GET /.well-known/jwks.json` | Public ES256 public key set |
@@ -77,7 +77,7 @@ mvn test
 
 Unit tests cover canonical hashing and idempotency outcomes. A Spring MVC smoke test uses an in-memory test database for readiness, JWKS, OpenAPI availability, and admin-route authentication. It generates both OpenAPI groups under `target/openapi` and fails if they drift from the committed contracts. PostgreSQL-specific migrations and ingest transactions should additionally be exercised against PostgreSQL before a deployment; Docker is required for the local Compose stack.
 
-Optional PostgreSQL integration tests exercise the real database and transactions. The REST Assured suite starts the application on a random loopback port and covers every implemented endpoint: self-registration, health, JWKS and JWT verification, admin import and status, device registration, challenge and token, and snapshot upload and status. It also checks encrypted storage, duplicate and concurrent enrollment, validation, authorization, idempotency, replay protection, rate limits, and withdrawal. The authentication integration test directly verifies challenge SQL and nonce consumption. Run them only against a dedicated disposable test database: Flyway creates the application schema, and append-only synthetic audit records remain after test cleanup.
+Optional PostgreSQL integration tests exercise the real database and transactions. The REST Assured suite starts the application on a random loopback port and covers every implemented endpoint: self-registration, health, JWKS and JWT verification, admin import and status, device registration, challenge and token, and snapshot upload and status. It also checks encrypted storage, duplicate and concurrent enrollment, validation, authorization, idempotency, replay protection, rate limits, and the registration status lifecycle. The authentication integration test directly verifies challenge SQL and nonce consumption. Run them only against a dedicated disposable test database: Flyway creates the application schema, and append-only synthetic audit records remain after test cleanup.
 
 ```powershell
 $env:TEST_POSTGRES_JDBC_URL = "jdbc:postgresql://localhost:5432/usage_test"

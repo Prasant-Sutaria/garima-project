@@ -77,13 +77,17 @@ class PostgresAuthenticationIntegrationTest {
     void storesTimestampsAndConsumesNonceEvenWhenSignatureFails() throws Exception {
         registrationId = "P-" + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         registrations.insert(registrationId, new byte[]{1}, new byte[]{2}, new byte[]{3}, "test");
+        assertEquals("not_registered", registrations.findStatus(registrationId).orElseThrow());
 
         KeyPair deviceKey = generateKey();
         ECPublicKey publicKey = (ECPublicKey) deviceKey.getPublic();
         var jwk = new DeviceDtos.PublicKeyJwk("EC", "P-256",
                 coordinate(publicKey.getW().getAffineX()),
                 coordinate(publicKey.getW().getAffineY()));
+        assertEquals(401, assertThrows(ApiException.class,
+                () -> authentication.issueChallenge(registrationId, "127.0.0.1")).status().value());
         devices.register(new DeviceDtos.RegisterRequest(registrationId, jwk, "1.0.0"));
+        assertEquals("activated", registrations.findStatus(registrationId).orElseThrow());
 
         var challenge = authentication.issueChallenge(registrationId, "127.0.0.1");
         var badProof = proof(challenge, generateKey());

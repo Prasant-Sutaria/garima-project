@@ -64,7 +64,7 @@ public class AuthenticationService {
     public DeviceDtos.ChallengeResponse issueChallenge(String registrationId, String sourceIp) {
         rateLimiter.check("challenge:registration:" + registrationId, 10);
         rateLimiter.check("challenge:ip:" + sourceIp, 100);
-        if (!registrations.findStatus(registrationId).filter("active"::equals).isPresent()
+        if (!registrations.findStatus(registrationId).filter("activated"::equals).isPresent()
                 || devices.findActiveByRegistration(registrationId).isEmpty()) {
             throw unauthorized();
         }
@@ -96,7 +96,7 @@ public class AuthenticationService {
 
         var status = registrations.findStatus(request.registrationId());
         var device = devices.findActiveByRegistration(request.registrationId());
-        if (!status.filter("active"::equals).isPresent() || device.isEmpty()) {
+        if (!status.filter("activated"::equals).isPresent() || device.isEmpty()) {
             throw unauthorized();
         }
         if (!challenges.consume(sha256(nonce), request.registrationId(), now)) {

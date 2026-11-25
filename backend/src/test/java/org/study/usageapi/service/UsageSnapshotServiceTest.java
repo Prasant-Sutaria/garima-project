@@ -49,7 +49,7 @@ class UsageSnapshotServiceTest {
         OffsetDateTime receivedAt = OffsetDateTime.parse("2026-11-20T18:25:00Z");
         var request = snapshot(snapshotId);
         var principal = new ParticipantPrincipal("P-7K3Q9X", deviceId);
-        when(registrations.lockStatus(principal.registrationId())).thenReturn(Optional.of("active"));
+        when(registrations.lockStatus(principal.registrationId())).thenReturn(Optional.of("activated"));
         when(devices.findActive(deviceId, principal.registrationId())).thenReturn(Optional.of(
                 new DeviceRepository.Device(deviceId, principal.registrationId(), "{}", "1.0.0", "active")));
         when(hasher.hash(request)).thenReturn(hash);
@@ -71,7 +71,7 @@ class UsageSnapshotServiceTest {
         UUID deviceId = UUID.randomUUID();
         var request = snapshot(snapshotId);
         var principal = new ParticipantPrincipal("P-7K3Q9X", deviceId);
-        when(registrations.lockStatus(principal.registrationId())).thenReturn(Optional.of("active"));
+        when(registrations.lockStatus(principal.registrationId())).thenReturn(Optional.of("activated"));
         when(devices.findActive(deviceId, principal.registrationId())).thenReturn(Optional.of(
                 new DeviceRepository.Device(deviceId, principal.registrationId(), "{}", "1.0.0", "active")));
         when(hasher.hash(request)).thenReturn(new byte[]{1});
@@ -92,7 +92,7 @@ class UsageSnapshotServiceTest {
         UUID deviceId = UUID.randomUUID();
         var request = snapshot(snapshotId);
         var principal = new ParticipantPrincipal("P-7K3Q9X", deviceId);
-        when(registrations.lockStatus(principal.registrationId())).thenReturn(Optional.of("active"));
+        when(registrations.lockStatus(principal.registrationId())).thenReturn(Optional.of("activated"));
         when(devices.findActive(deviceId, principal.registrationId())).thenReturn(Optional.of(
                 new DeviceRepository.Device(deviceId, principal.registrationId(), "{}", "1.0.0", "active")));
         when(hasher.hash(request)).thenReturn(new byte[]{1});
@@ -120,7 +120,7 @@ class UsageSnapshotServiceTest {
         var request = snapshot(snapshotId);
         var principal = new ParticipantPrincipal("P-7K3Q9X", deviceId);
         var encrypted = new EncryptedEnvelope(new byte[]{1}, new byte[]{2}, "local-v1");
-        when(registrations.lockStatus(principal.registrationId())).thenReturn(Optional.of("active"));
+        when(registrations.lockStatus(principal.registrationId())).thenReturn(Optional.of("activated"));
         when(devices.findActive(deviceId, principal.registrationId())).thenReturn(Optional.of(
                 new DeviceRepository.Device(deviceId, principal.registrationId(), "{}", "1.0.0", "active")));
         when(hasher.hash(request)).thenReturn(bodyHash);

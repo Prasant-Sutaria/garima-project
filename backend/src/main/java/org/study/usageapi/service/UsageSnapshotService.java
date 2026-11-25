@@ -52,7 +52,7 @@ public class UsageSnapshotService {
         String registrationStatus = registrations.lockStatus(participant.registrationId())
                 .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "forbidden",
                         "The registration is not eligible."));
-        if (!"active".equals(registrationStatus)
+        if (!"activated".equals(registrationStatus)
                 || devices.findActive(participant.deviceId(), participant.registrationId()).isEmpty()) {
             throw new ApiException(HttpStatus.FORBIDDEN, "forbidden", "The registration is not eligible.");
         }

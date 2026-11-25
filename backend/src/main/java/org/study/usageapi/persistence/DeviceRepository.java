@@ -47,6 +47,11 @@ public class DeviceRepository {
                 .stream().findFirst();
     }
 
+    public boolean hasAnyDevice(String registrationId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM devices WHERE registration_id = ?)", Boolean.class, registrationId));
+    }
+
     public void insert(UUID id, String registrationId, DeviceDtos.PublicKeyJwk publicKey, String appVersion) {
         jdbc.update("""
                 INSERT INTO devices (id, registration_id, public_key_jwk, app_version)

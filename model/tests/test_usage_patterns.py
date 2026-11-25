@@ -36,7 +36,7 @@ def _real_daily(participants: int, days: int, seed: int = 1) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def test_real_loader_excludes_withdrawn_and_manual_rows_and_hides_registration_ids():
+def test_real_loader_excludes_deactivated_and_manual_rows_and_hides_registration_ids():
     connection = sqlite3.connect(":memory:")
     connection.execute("ATTACH ':memory:' AS registry")
     connection.execute("CREATE TABLE registry.registrations (registration_id TEXT, status TEXT)")
@@ -46,7 +46,7 @@ def test_real_loader_excludes_withdrawn_and_manual_rows_and_hides_registration_i
     )
     connection.executemany(
         "INSERT INTO registry.registrations VALUES (?, ?)",
-        [("a", "active"), ("b", "withdrawn"), ("c", "active")],
+        [("a", "activated"), ("b", "deactivated"), ("c", "activated")],
     )
     connection.executemany(
         "INSERT INTO usage_snapshots VALUES (?, ?, ?, ?, ?, ?)",

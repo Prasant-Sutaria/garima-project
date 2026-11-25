@@ -75,7 +75,7 @@ Load it into Postgres with `docker compose --profile model run --rm synthetic-lo
 
 Details:
 
-- Real rows come only from `usage_snapshots` joined to `registry.registrations` with `status = 'active'` and `trigger = 'scheduled'`. Withdrawn participants and manual snapshots are excluded. Participants are numbered inside the query, so registration IDs never leave the database. Groups with fewer than 5 participants are suppressed.
+- Real rows come only from `usage_snapshots` joined to `registry.registrations` with `status = 'activated'` and `trigger = 'scheduled'`. Deactivated participants and manual snapshots are excluded. Participants are numbered inside the query, so registration IDs never leave the database. Groups with fewer than 5 participants are suppressed.
 - The stored real snapshots contain daily totals only, so real time-of-day patterns cannot be learned yet. The time-of-day section is labelled synthetic and never mixes in real rows.
 - The connection uses `default_transaction_read_only=on`. Use a least-privilege role:
 

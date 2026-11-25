@@ -58,12 +58,17 @@ public class AdminRegistrationController {
     @PatchMapping(value = "/{registration_id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(operationId = "adminUpdateRegistration",
             summary = "Update registration status",
-            description = "Changing status to withdrawn immediately prevents further authentication and uploads.")
+            description = "Statuses progress not_registered -> activated -> deactivated. A registration becomes "
+                    + "activated only when its first device registers. Deactivation immediately prevents further "
+                    + "authentication and uploads and revokes the active device. Reactivation restores the "
+                    + "previous status: activated if a device was ever registered, otherwise not_registered.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Status changed"),
             @ApiResponse(responseCode = "401", description = "Admin authentication failed",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "404", description = "Registration not found",
+                    content = @Content(schema = @Schema(implementation = ApiError.class))),
+            @ApiResponse(responseCode = "409", description = "Status transition not allowed",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "422", description = "Invalid request",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
