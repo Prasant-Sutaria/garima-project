@@ -8,10 +8,13 @@ async function fillRegistration(page, { name, mobile, email }) {
   await page.fill('#user_name', name);
   await page.fill('#age', '30');
   await page.getByRole('radio', { name: 'Female' }).check();
+  await page.getByRole('radio', { name: 'Working professional' }).check();
+  await page.getByRole('radio', { name: '6 months (free)' }).check();
   await page.fill('#mobile_number', mobile);
   await page.fill('#email', email);
   await page.locator('#indoor_activity .hobby-rows input').first().fill('Chess');
   await page.locator('#outdoor_activity .hobby-rows input').first().fill('Hiking');
+  await page.getByLabel('By registering, you accept the terms and conditions.').check();
 }
 
 async function submit(page, details) {
@@ -24,6 +27,19 @@ async function registrationCount(request) {
   const response = await request.get(`${stubBackend}/count`);
   return (await response.json()).registrations;
 }
+
+test('the UI does not submit until the terms and conditions are accepted', async ({ page, request }) => {
+  const before = await registrationCount(request);
+
+  await page.goto('/');
+  await fillRegistration(page, { name: 'Terms Example', mobile: '+14155550177', email: `terms-${run}@example.test` });
+  await page.getByLabel('By registering, you accept the terms and conditions.').uncheck();
+  await page.locator('#submit-button').click();
+
+  await expect(page.locator('#consent-error')).toContainText('Accept the terms and conditions');
+  await expect(page.getByLabel('By registering, you accept the terms and conditions.')).toBeFocused();
+  expect(await registrationCount(request)).toBe(before);
+});
 
 test('the UI rejects a second registration with the same email', async ({ page, request }) => {
   const email = `duplicate-${run}@example.test`;

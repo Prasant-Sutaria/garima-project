@@ -42,6 +42,7 @@
                 <div class="field full"><label for="user_name">User name</label><input id="user_name" name="user_name" type="text" maxlength="120" placeholder="e.g. Alex Example" required aria-describedby="user_name-error"><p class="field-error" id="user_name-error"></p></div>
                 <div class="field"><label for="age">Age</label><input id="age" name="age" type="number" min="0" max="120" step="1" inputmode="numeric" placeholder="e.g. 25" required aria-describedby="age-error"><p class="field-error" id="age-error"></p></div>
                 <div class="field"><span class="field-label" id="gender-label">Gender</span><div class="radio-group" id="gender" role="radiogroup" aria-labelledby="gender-label" aria-describedby="gender-error"><label><input type="radio" name="gender" value="Female" required> Female</label><label><input type="radio" name="gender" value="Male"> Male</label><label><input type="radio" name="gender" value="Non-binary"> Non-binary</label><label><input type="radio" name="gender" value="Prefer not to say"> Prefer not to say</label></div><p class="field-error" id="gender-error"></p></div>
+                <div class="field full"><span class="field-label" id="profession-label">Profession</span><div class="radio-group" id="profession" role="radiogroup" aria-labelledby="profession-label" aria-describedby="profession-error"><label><input type="radio" name="profession" value="working_professional" required> Working professional</label><label><input type="radio" name="profession" value="homemaker"> Homemaker</label><label><input type="radio" name="profession" value="student"> Student</label></div><p class="field-error" id="profession-error"></p></div>
               </div>
             </section>
             <section class="form-section" aria-labelledby="contact-title">
@@ -57,6 +58,17 @@
               <div class="grid">
                 <div class="field"><span class="field-label" id="indoor_activity-label">Indoor activity</span><div class="hobby-list" id="indoor_activity" data-field="indoor_activity" role="group" aria-labelledby="indoor_activity-label" aria-describedby="indoor_activity-error"><div class="hobby-rows"></div><button class="add-hobby" type="button" data-target="indoor_activity">+ Add indoor hobby</button></div><p class="field-error" id="indoor_activity-error"></p></div>
                 <div class="field"><span class="field-label" id="outdoor_activity-label">Outdoor activity</span><div class="hobby-list" id="outdoor_activity" data-field="outdoor_activity" role="group" aria-labelledby="outdoor_activity-label" aria-describedby="outdoor_activity-error"><div class="hobby-rows"></div><button class="add-hobby" type="button" data-target="outdoor_activity">+ Add outdoor hobby</button></div><p class="field-error" id="outdoor_activity-error"></p></div>
+              </div>
+            </section>
+            <section class="form-section" aria-labelledby="scheme-title">
+              <h3 id="scheme-title"><span aria-hidden="true">04</span> Scheme</h3>
+              <div class="field"><span class="field-label" id="scheme_months-label">Scheme duration</span><div class="radio-group" id="scheme_months" role="radiogroup" aria-labelledby="scheme_months-label" aria-describedby="scheme_months-error"><label><input type="radio" name="scheme_months" value="3" required> 3 months (free)</label><label><input type="radio" name="scheme_months" value="6"> 6 months (free)</label><label><input type="radio" name="scheme_months" value="12"> 12 months (free)</label></div><p class="field-error" id="scheme_months-error"></p></div>
+            </section>
+            <section class="form-section" aria-labelledby="terms-title">
+              <h3 id="terms-title"><span aria-hidden="true">05</span> Terms and conditions</h3>
+              <div class="field">
+                <label class="checkbox-label" for="consent"><input id="consent" name="consent" type="checkbox" value="yes" required aria-describedby="consent-error"> By registering, you accept the terms and conditions.</label>
+                <p class="field-error" id="consent-error"></p>
               </div>
             </section>
           </fieldset>

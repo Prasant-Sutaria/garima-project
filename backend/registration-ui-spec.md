@@ -16,9 +16,12 @@ Display a clear local-test-only notice, all fields below, and a Register button.
 | Mobile number | `mobile_number` | Phone | E.164: `+` followed by 2-15 digits, first digit nonzero; regex `^\+[1-9][0-9]{1,14}$` |
 | Email | `email` | Email | Nonblank, valid email syntax; maximum 254 UTF-16 code units |
 | Age | `age` | Numeric | Whole number from 0 to 120 inclusive; send as a JSON number |
-| Gender | `gender` | Text | Nonblank; maximum 64 UTF-16 code units |
-| Indoor activity | `indoor_activity` | Multiline text | Nonblank; maximum 2,000 UTF-16 code units |
-| Outdoor activity | `outdoor_activity` | Multiline text | Nonblank; maximum 2,000 UTF-16 code units |
+| Gender | `gender` | Radio group | One of Female, Male, Non-binary, Prefer not to say (sent as text); the backend accepts any nonblank text up to 64 UTF-16 code units |
+| Profession | `profession` | Radio group | One of Working professional, Homemaker, Student, sent as `working_professional`, `homemaker`, or `student`; the backend rejects any other value |
+| Indoor activity | `indoor_activity` | Hobby textboxes, joined with `, ` | Nonblank after joining; maximum 2,000 UTF-16 code units |
+| Outdoor activity | `outdoor_activity` | Hobby textboxes, joined with `, ` | Nonblank after joining; maximum 2,000 UTF-16 code units |
+| Scheme | `scheme_months` | Radio group | Integer 3, 6, or 12 (months); currently free of charge. The backend accepts only active schemes in `registry.schemes` |
+| Terms and conditions | (not sent) | Checkbox | Must be checked: "By registering, you accept the terms and conditions." Enforced in the browser only |
 
 Use descriptive labels and keyboard types, associate errors with inputs, and make the form and submission status accessible to screen readers. Do not invent gender options, activity categories, or extra required fields as API requirements. Server validation is authoritative; a 422 response does not identify individual invalid fields.
 
@@ -41,7 +44,9 @@ Example request using synthetic data:
   "age": 25,
   "gender": "example",
   "indoor_activity": "Reading",
-  "outdoor_activity": "Walking"
+  "outdoor_activity": "Walking",
+  "scheme_months": 6,
+  "profession": "student"
 }
 ```
 
@@ -53,7 +58,7 @@ Example request using synthetic data:
 
 The ID matches `P-[A-Z0-9]{6}`. It identifies an active registration for the existing device registration flow. A successful response does **not** mean the device is registered or authenticated, contact ownership is verified, or any usage data has been uploaded.
 
-The backend encrypts submitted data. It compares email case-insensitively and canonical E.164 mobile numbers exactly; a duplicate of either among self-registrations is rejected. Admin-imported registrations contain no contact details and cannot be checked for contact duplicates.
+The backend encrypts submitted data. It compares email case-insensitively and canonical E.164 mobile numbers exactly; a duplicate of either among self-registrations is rejected. Admin-imported registrations contain no contact details and cannot be checked for contact duplicates. The selected scheme is stored unencrypted in `registry.enrollment_details.scheme_months` (references `registry.schemes`, which is managed by seed data and has a `price` column for future charging). The profession is also stored unencrypted, in `registry.enrollment_details.profession`, so read-only analysis can group usage by profession.
 
 ## UI flow and states
 
@@ -77,6 +82,7 @@ The response also has an `X-Request-Id` header. Handle missing or non-JSON error
 
 | HTTP status | UI behavior |
 |---|---|
+| 400 `invalid_scheme` | Explain that the selected scheme is not available; the UI should let the user choose again. |
 | 409 | Explain that registration could not be completed because a submitted contact may already be registered. Do not identify which field or treat it as success. |
 | 413 | Explain that the request is too large; retain input for correction. |
 | 422 | Explain that the request is invalid; show local field validation where possible. Do not invent server field-level errors. |

@@ -56,6 +56,10 @@ public class RegistrationService {
         }
         String email = request.email().strip().toLowerCase(Locale.ROOT);
         String mobile = request.mobileNumber();
+        if (!registrations.isSchemeActive(request.schemeMonths())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_scheme",
+                    "The selected scheme is not available.");
+        }
         byte[] emailFingerprint = keyProvider.contactFingerprint("email", email);
         byte[] mobileFingerprint = keyProvider.contactFingerprint("mobile", mobile);
         var encryptedFields = keyProvider.encryptFields(
@@ -80,7 +84,8 @@ public class RegistrationService {
                 continue;
             }
             if (!registrations.insertEnrollmentDetails(registrationId, encryptedDetails.ciphertext(),
-                    encryptedDetails.wrappedDek(), encryptedDetails.keyId(), emailFingerprint, mobileFingerprint)) {
+                    encryptedDetails.wrappedDek(), encryptedDetails.keyId(), emailFingerprint, mobileFingerprint,
+                    request.schemeMonths(), request.profession())) {
                 throw new ApiException(HttpStatus.CONFLICT, "registration_exists",
                         "A registration could not be completed.");
             }

@@ -4,9 +4,16 @@ export const fields = {
   email: { label: 'Email', max: 254 },
   age: { label: 'Age' },
   gender: { label: 'Gender', max: 64 },
+  profession: { label: 'Profession' },
   indoor_activity: { label: 'Indoor activity', max: 2000 },
   outdoor_activity: { label: 'Outdoor activity', max: 2000 },
+  scheme_months: { label: 'Scheme' },
+  consent: { label: 'Terms and conditions' },
 };
+
+export const schemeMonths = ['3', '6', '12'];
+
+export const professions = ['working_professional', 'homemaker', 'student'];
 
 export function joinHobbies(hobbies) {
   return hobbies.map((hobby) => hobby.trim()).filter(Boolean).join(', ');
@@ -15,11 +22,21 @@ export function joinHobbies(hobbies) {
 export function validate(values) {
   const errors = {};
   for (const [name, field] of Object.entries(fields)) {
+    if (name === 'consent' || name === 'scheme_months' || name === 'profession') continue;
     const value = values[name] ?? '';
     if (!value.trim()) errors[name] = `Enter ${field.label.toLowerCase()}.`;
     else if (field.max && value.length > field.max) {
       errors[name] = `Use no more than ${field.max.toLocaleString('en-US')} characters.`;
     }
+  }
+  if (!professions.includes(values.profession)) {
+    errors.profession = 'Choose a profession.';
+  }
+  if (!schemeMonths.includes(values.scheme_months)) {
+    errors.scheme_months = 'Choose a scheme duration.';
+  }
+  if (values.consent !== 'yes') {
+    errors.consent = 'Accept the terms and conditions to register.';
   }
   if (values.mobile_number?.trim() && !/^\+[1-9][0-9]{1,14}$/.test(values.mobile_number)) {
     errors.mobile_number = 'Use international format, for example +14155550123.';

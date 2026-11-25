@@ -45,14 +45,23 @@ public class RegistrationRepository {
                 """, registrationId, ageEncrypted, genderEncrypted, wrappedDek, keyId) == 1;
     }
 
+    public boolean isSchemeActive(int durationMonths) {
+        return jdbc.query("SELECT active FROM registry.schemes WHERE duration_months = ?",
+                        (resultSet, rowNumber) -> resultSet.getBoolean("active"), durationMonths)
+                .stream().findFirst().orElse(false);
+    }
+
     public boolean insertEnrollmentDetails(String registrationId, byte[] ciphertext, byte[] wrappedDek,
-                                           String keyId, byte[] emailFingerprint, byte[] mobileFingerprint) {
+                                           String keyId, byte[] emailFingerprint, byte[] mobileFingerprint,
+                                           int schemeMonths, String profession) {
         return jdbc.update("""
                 INSERT INTO registry.enrollment_details
-                    (registration_id, details_enc, dek_wrapped, key_id, email_fingerprint, mobile_fingerprint)
-                VALUES (?, ?, ?, ?, ?, ?)
+                    (registration_id, details_enc, dek_wrapped, key_id, email_fingerprint, mobile_fingerprint,
+                     scheme_months, profession)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT DO NOTHING
-                """, registrationId, ciphertext, wrappedDek, keyId, emailFingerprint, mobileFingerprint) == 1;
+                """, registrationId, ciphertext, wrappedDek, keyId, emailFingerprint, mobileFingerprint,
+                schemeMonths, profession) == 1;
     }
 
     public byte[] contactIndexVerifier(byte[] verifier) {

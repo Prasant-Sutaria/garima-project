@@ -44,7 +44,10 @@ public final class RegistrationDtos {
             @NotNull @Min(0) @Max(120) Integer age,
             @NotBlank @Size(max = 64) String gender,
             @NotBlank @Size(max = 2000) String indoorActivity,
-            @NotBlank @Size(max = 2000) String outdoorActivity) {
+            @NotBlank @Size(max = 2000) String outdoorActivity,
+            @NotNull @Min(3) @Max(12) Integer schemeMonths,
+            @NotNull @Pattern(regexp = "student|working_professional|homemaker")
+            @Schema(allowableValues = {"student", "working_professional", "homemaker"}) String profession) {
     }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)

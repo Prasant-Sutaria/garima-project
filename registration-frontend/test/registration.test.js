@@ -13,11 +13,15 @@ const valid = {
   gender: 'example',
   indoor_activity: 'Reading',
   outdoor_activity: 'Walking',
+  scheme_months: '6',
+  profession: 'student',
+  consent: 'yes',
 };
 
 test('validates required fields, exact phone format, email, and integer age boundaries', () => {
   assert.deepEqual(validate(valid), {});
-  assert.equal(Object.keys(validate({})).length, 7);
+  assert.equal(Object.keys(validate({ ...valid, consent: undefined })).length, 1);
+  assert.equal(Object.keys(validate({})).length, 10);
   for (const age of ['0', '120']) assert.equal(validate({ ...valid, age }).age, undefined);
   for (const age of ['-1', '121', '1.5', '1e2', ' ']) {
     assert.ok(validate({ ...valid, age }).age, age);
@@ -27,6 +31,31 @@ test('validates required fields, exact phone format, email, and integer age boun
   }
   assert.ok(validate({ ...valid, email: 'invalid@' }).email);
   assert.ok(validate({ ...valid, gender: '   ' }).gender);
+});
+
+test('registration requires the terms and conditions to be accepted', () => {
+  for (const consent of [undefined, '', 'no']) {
+    assert.match(validate({ ...valid, consent }).consent, /accept the terms/i, String(consent));
+  }
+  assert.equal(validate({ ...valid, consent: 'yes' }).consent, undefined);
+});
+
+test('a scheme of 3, 6, or 12 months is required', () => {
+  for (const scheme_months of [undefined, '', '1', '9', '24', '6.0']) {
+    assert.ok(validate({ ...valid, scheme_months }).scheme_months, String(scheme_months));
+  }
+  for (const scheme_months of ['3', '6', '12']) {
+    assert.equal(validate({ ...valid, scheme_months }).scheme_months, undefined);
+  }
+});
+
+test('a profession of working professional, homemaker, or student is required', () => {
+  for (const profession of [undefined, '', 'Student', 'working professional', 'retired']) {
+    assert.equal(validate({ ...valid, profession }).profession, 'Choose a profession.', String(profession));
+  }
+  for (const profession of ['working_professional', 'homemaker', 'student']) {
+    assert.equal(validate({ ...valid, profession }).profession, undefined);
+  }
 });
 
 test('joins hobby textboxes for the single-string API fields, dropping blanks', () => {

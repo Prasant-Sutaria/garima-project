@@ -63,6 +63,9 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: #b74f3
 .radio-group label { display: inline-flex; align-items: center; gap: 7px; font-weight: 400; margin: 0; cursor: pointer; }
 .radio-group input[type="radio"] { width: auto; padding: 0; margin: 0; accent-color: #244e3c; }
 .radio-group[aria-invalid="true"] { outline: 1px solid #b74f3f; outline-offset: 4px; border-radius: 6px; }
+.checkbox-label { display: inline-flex; align-items: center; gap: 8px; font-weight: 400; margin: 0; cursor: pointer; }
+.checkbox-label input[type="checkbox"] { width: auto; padding: 0; margin: 0; accent-color: #244e3c; }
+.checkbox-label input[aria-invalid="true"] { outline: 1px solid #b74f3f; outline-offset: 3px; }
 .hobby-rows { display: grid; gap: 8px; }
 .hobby-row { display: flex; gap: 8px; align-items: center; }
 .hobby-row input { flex: 1; }

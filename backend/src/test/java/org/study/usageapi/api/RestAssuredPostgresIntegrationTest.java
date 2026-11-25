@@ -161,6 +161,12 @@ class RestAssuredPostgresIntegrationTest {
         assertEquals(input.get("email"), details.get("email").asText());
         assertEquals(input.get("indoor_activity"), details.get("indoor_activity").asText());
         assertEquals(input.get("outdoor_activity"), details.get("outdoor_activity").asText());
+        assertEquals(input.get("scheme_months"), jdbc.queryForObject(
+                "SELECT scheme_months FROM registry.enrollment_details WHERE registration_id = ?",
+                Integer.class, id));
+        assertEquals(input.get("profession"), jdbc.queryForObject(
+                "SELECT profession FROM registry.enrollment_details WHERE registration_id = ?",
+                String.class, id));
         KeyPair key = generateKey();
         registerDevice(id, key).then().statusCode(201);
         authenticate(id, key);
@@ -476,7 +482,8 @@ class RestAssuredPostgresIntegrationTest {
                 new java.security.SecureRandom().nextInt(1_000_000_000));
         return Map.of("user_name", "Example Person", "mobile_number", "+1555" + digits,
                 "email", UUID.randomUUID() + "@example.test", "age", 25, "gender", "test",
-                "indoor_activity", "Reading", "outdoor_activity", "Walking");
+                "indoor_activity", "Reading", "outdoor_activity", "Walking", "scheme_months", 3,
+                "profession", "working_professional");
     }
 
     private Response registerDevice(KeyPair key) {

@@ -31,6 +31,10 @@ const server = http.createServer((request, response) => {
   request.on('data', (chunk) => chunks.push(chunk));
   request.on('end', () => {
     const details = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    if (!['student', 'working_professional', 'homemaker'].includes(details.profession)) {
+      send(response, 422, { code: 'invalid_request', message: 'The request is invalid.' });
+      return;
+    }
     const email = details.email.trim().toLowerCase();
     const mobile = details.mobile_number.trim();
     if (registeredEmails.has(email) || registeredMobiles.has(mobile)) {

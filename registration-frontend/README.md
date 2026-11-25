@@ -77,10 +77,14 @@ loopback-only listener and upstream restriction remain in effect.
 
 - **Synthetic local test data only.** This is not production enrollment, consent,
   contact verification, device registration, or authentication.
-- All seven backend fields are required. The form validates formats and lengths,
-  sends exact snake_case property names and numeric age, and preserves input on
+- All seven backend fields are required, plus a `scheme_months` choice (3, 6, or 12
+  months; currently free) and a `profession` choice (Working professional, Homemaker,
+  or Student, sent as `working_professional`, `homemaker`, or `student`). The form validates formats and lengths,
+  sends exact snake_case property names and numeric age and scheme, and preserves input on
   failure. Gender is a radio group; each activity is a list of hobby textboxes that
-  are joined with commas into the existing string fields.
+  are joined with commas into the existing string fields. Registration also requires
+  accepting the terms and conditions checkbox; that choice is checked in the browser
+  and is not sent to the backend.
 - Only HTTP 201 with a valid `P-[A-Z0-9]{6}` ID shows success. Copy/save the ID
   before closing or refreshing; there is no recovery endpoint.
 - Duplicate contact, oversized request, validation, and rate-limit failures are

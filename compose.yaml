@@ -46,6 +46,52 @@ services:
     ports:
       - "${FRONTEND_HOST_PORT:-3000}:3000"
 
+  # One-shot loader: (re)loads the committed synthetic CSVs into the separate `synthetic` schema.
+  synthetic-loader:
+    image: postgres:16.4
+    profiles: ["model"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB:-usage}
+      PGUSER: ${POSTGRES_USER:-usage_api}
+      PGPASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in root .env}
+    working_dir: /data
+    volumes:
+      - ./model/data/synthetic:/data:ro
+    command: ["psql", "-v", "ON_ERROR_STOP=1", "-f", "load.sql"]
+
+  # One-shot job: reads daily usage through a read-only role, writes the dashboard to /output.
+  # Run with: docker compose --profile model run --rm model-job
+  model-job:
+    build: ./model
+    profiles: ["model"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      synthetic-loader:
+        condition: service_completed_successfully
+    environment:
+      MODEL_DB_HOST: postgres
+      MODEL_DB_PORT: "5432"
+      MODEL_DB_NAME: ${POSTGRES_DB:-usage}
+      MODEL_DB_USER: ${MODEL_DB_USER:-usage_model_reader}
+      MODEL_DB_PASSWORD: ${MODEL_DB_PASSWORD:-}
+    volumes:
+      - pattern_output:/output
+
+  # Serves the dashboard written by model-job. Starts without the job having run.
+  pattern-dashboard:
+    image: nginx:1.27-alpine
+    profiles: ["model"]
+    volumes:
+      - pattern_output:/usr/share/nginx/html:ro
+    ports:
+      - "${PATTERN_DASHBOARD_HOST_PORT:-8090}:80"
+
 volumes:
   postgres_data:
   local_keys:
+  pattern_output:

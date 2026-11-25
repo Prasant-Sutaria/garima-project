@@ -566,6 +566,18 @@ components:
           type: "string"
           maxLength: 2000
           minLength: 0
+        scheme_months:
+          type: "integer"
+          format: "int32"
+          maximum: 12
+          minimum: 3
+        profession:
+          type: "string"
+          enum:
+          - "student"
+          - "working_professional"
+          - "homemaker"
+          pattern: "student|working_professional|homemaker"
       required:
       - "age"
       - "email"
@@ -573,6 +585,8 @@ components:
       - "indoor_activity"
       - "mobile_number"
       - "outdoor_activity"
+      - "profession"
+      - "scheme_months"
       - "user_name"
     SelfRegistrationResponse:
       type: "object"

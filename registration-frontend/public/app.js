@@ -119,11 +119,14 @@ form.addEventListener('submit', async (event) => {
   form.setAttribute('aria-busy', 'true');
   showStatus('Sending your registration to the local backend...');
   updateButton();
+  // Consent is enforced in the browser only, so the backend request stays unchanged.
+  const details = { ...values };
+  delete details.consent;
   try {
     const response = await fetch('/api/v1/registrations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ ...values, age: Number(values.age) }),
+      body: JSON.stringify({ ...details, age: Number(values.age), scheme_months: Number(values.scheme_months) }),
       signal: AbortSignal.timeout(20_000),
     });
     const text = await response.text();

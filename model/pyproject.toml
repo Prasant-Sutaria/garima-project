@@ -17,6 +17,7 @@ dependencies = [
     "lightgbm>=4.6,<5",
     "joblib>=1.4,<2",
     "PyYAML>=6,<7",
+    "psycopg[binary]>=3.2,<4",
 ]
 
 [project.optional-dependencies]

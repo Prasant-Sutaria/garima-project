@@ -44,11 +44,13 @@ Local generated docs are at `/v3/api-docs/app` and `/v3/api-docs/admin`; the adm
   "age": 25,
   "gender": "example",
   "indoor_activity": "Reading",
-  "outdoor_activity": "Walking"
+  "outdoor_activity": "Walking",
+  "scheme_months": 6,
+  "profession": "student"
 }
 ```
 
-All fields are required. Name is at most 120 characters, email at most 254, gender at most 64, and each free-text activity at most 2,000. Age is an integer from 0 to 120; mobile must use E.164 (`+` followed by 2-15 digits, starting with a nonzero digit). A successful response is `201` with `{"registration_id":"P-ABC123"}`; use that ID for the existing device registration flow. Email is compared case-insensitively and the canonical E.164 number is compared exactly. Duplicate email or mobile among self-registrations produces generic `409 registration_exists`; admin imports have no contact details to compare. Malformed input returns 422. Requests are rate-limited to 10 per source IP per minute, returning 429 and `Retry-After: 60`.
+All fields are required. Name is at most 120 characters, email at most 254, gender at most 64, and each free-text activity at most 2,000. Age is an integer from 0 to 120; `scheme_months` is 3, 6, or 12; `profession` is `student`, `working_professional`, or `homemaker`; mobile must use E.164 (`+` followed by 2-15 digits, starting with a nonzero digit). A successful response is `201` with `{"registration_id":"P-ABC123"}`; use that ID for the existing device registration flow. Email is compared case-insensitively and the canonical E.164 number is compared exactly. Duplicate email or mobile among self-registrations produces generic `409 registration_exists`; admin imports have no contact details to compare. Malformed input returns 422. Requests are rate-limited to 10 per source IP per minute, returning 429 and `Retry-After: 60`.
 
 The backend encrypts submitted details and uses keyed contact fingerprints for uniqueness. There is no contact verification or recovery endpoint, and the request is not idempotent: if its outcome is unknown, retrying may return 409 without returning the original ID. Do not implement silent retries or display a duplicate result as successful registration.
 
