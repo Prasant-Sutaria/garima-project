@@ -312,7 +312,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiError"
         "403":
-          description: "Device is inactive"
+          description: "Device or registration is inactive"
           content:
             application/json:
               schema:

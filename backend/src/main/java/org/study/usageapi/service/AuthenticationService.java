@@ -172,6 +172,7 @@ public class AuthenticationService {
             }
             UUID deviceId = UUID.fromString(claims.getStringClaim("did"));
             String registrationId = claims.getSubject();
+            RegistrationStatusGuard.requireActivated(registrations.findStatus(registrationId));
             if (devices.findActive(deviceId, registrationId).isEmpty()) {
                 throw new ApiException(HttpStatus.FORBIDDEN, "forbidden", "This device is not active.");
             }

@@ -89,7 +89,7 @@ public class UsageController {
             @ApiResponse(responseCode = "200", description = "Snapshot status"),
             @ApiResponse(responseCode = "401", description = "Invalid or expired token",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
-            @ApiResponse(responseCode = "403", description = "Device is inactive",
+            @ApiResponse(responseCode = "403", description = "Device or registration is inactive",
                     content = @Content(schema = @Schema(implementation = ApiError.class))),
             @ApiResponse(responseCode = "404", description = "Snapshot not found for this participant",
                     content = @Content(schema = @Schema(implementation = ApiError.class)))

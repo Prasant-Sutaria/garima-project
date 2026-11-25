@@ -42,18 +42,16 @@ public class UsageSnapshotService {
     public UsageDtos.UploadResponse upload(UsageDtos.Snapshot snapshot, String idempotencyKey,
                                           ParticipantPrincipal participant, byte[] rawPayload) {
         rateLimiter.check("upload:registration:" + participant.registrationId(), 60);
+        // Lock the registration row so an admin deactivation cannot interleave with the insert.
+        RegistrationStatusGuard.requireActivated(registrations.lockStatus(participant.registrationId()));
+        if (devices.findActive(participant.deviceId(), participant.registrationId()).isEmpty()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "forbidden", "This device is not active.");
+        }
         if (idempotencyKey == null || !snapshot.snapshotId().toString().equals(idempotencyKey)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "idempotency_key_mismatch",
                     "The idempotency key does not match the snapshot.");
         }
         if (!participant.registrationId().equals(snapshot.userId())) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "forbidden", "The registration is not eligible.");
-        }
-        String registrationStatus = registrations.lockStatus(participant.registrationId())
-                .orElseThrow(() -> new ApiException(HttpStatus.FORBIDDEN, "forbidden",
-                        "The registration is not eligible."));
-        if (!"activated".equals(registrationStatus)
-                || devices.findActive(participant.deviceId(), participant.registrationId()).isEmpty()) {
             throw new ApiException(HttpStatus.FORBIDDEN, "forbidden", "The registration is not eligible.");
         }
         validateSemantics(snapshot);

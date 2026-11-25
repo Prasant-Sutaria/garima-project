@@ -133,7 +133,9 @@ Use an ISO-8601 instant parseable by Java `Instant.parse`, for example the respo
 {"access_token":"<JWT>","token_type":"Bearer","expires_in":600}
 ```
 
-The JWT is ES256-signed, expires after 600 seconds, and has issuer `usage-api`, audience `usage-ingest`, scope `usage:write`, registration ID in `sub`, device UUID in `did`, and `iat`, `exp`, and `jti` claims. The header `kid` identifies the signing key. Invalid/expired proofs return 401; an invalid signature consumes the nonce, so start again with a new challenge. Challenge and token requests each have separate rolling 60-second limits of 10 per registration and 100 per source IP.
+The JWT is ES256-signed, expires after 600 seconds, and has issuer `usage-api`, audience `usage-ingest`, scope `usage:write`, registration ID in `sub`, device UUID in `did`, and `iat`, `exp`, and `jti` claims. The header `kid` identifies the signing key. Invalid/expired proofs return 401; an invalid signature consumes the nonce, so start again with a new challenge. Login (challenge and token) is only allowed for an `activated` registration with an active device; any other status returns the same generic 401 `unauthorized` so an unauthenticated caller cannot learn a registration's status.
+
+Every bearer-token request (snapshot upload and snapshot status) re-checks the registration status, so a token issued before an admin deactivation stops working immediately. These requests return 403 with code `registration_not_activated` or `registration_deactivated`, or `forbidden` when the device is no longer active. Upload checks this before reading or storing the payload. Challenge and token requests each have separate rolling 60-second limits of 10 per registration and 100 per source IP.
 
 ### Server public keys
 
@@ -259,7 +261,7 @@ Use the status and stable `code` for control flow, show a non-sensitive message,
 |---|---|
 | 400 | Correct invalid parameters, headers, idempotency key, or public key; do not blindly retry. |
 | 401 | For participant requests, refresh once with a new challenge; if still rejected, show authentication failure. For admin, request valid credentials. |
-| 403 | Device or registration is not eligible, or snapshot ownership does not match; show an actionable access error, not a successful upload. |
+| 403 | Device or registration is not eligible, or snapshot ownership does not match; show an actionable access error, not a successful upload. `registration_deactivated` and `registration_not_activated` mean the participant must contact the study team; do not retry. |
 | 404 | Resource not found or not owned; do not imply another participant's snapshot exists. |
 | 409 | Show the specific conflict; do not silently change a snapshot ID or body to bypass it. |
 | 413 | Body exceeds the size limit; report that the snapshot cannot be uploaded as-is. |

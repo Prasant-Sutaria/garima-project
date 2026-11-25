@@ -137,6 +137,26 @@ class UsageSnapshotServiceTest {
         verify(keyProvider).encrypt(rawPayload);
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+            "not_registered, registration_not_activated",
+            "deactivated, registration_deactivated"})
+    void uploadChecksRegistrationStatusBeforeTouchingThePayload(String status, String code) {
+        UUID snapshotId = UUID.randomUUID();
+        var principal = new ParticipantPrincipal("P-7K3Q9X", UUID.randomUUID());
+        when(registrations.lockStatus(principal.registrationId())).thenReturn(Optional.of(status));
+
+        ApiException exception = assertThrows(ApiException.class,
+                () -> service.upload(snapshot(snapshotId), "mismatched-key", principal, new byte[]{9}));
+
+        assertEquals(403, exception.status().value());
+        assertEquals(code, exception.code());
+        verify(snapshots, never()).find(any(UUID.class));
+        verify(snapshots, never()).insert(any(UsageDtos.Snapshot.class), anyString(),
+                any(UUID.class), any(byte[].class), any(EncryptedEnvelope.class));
+        verify(keyProvider, never()).encrypt(any(byte[].class));
+    }
+
     private UsageDtos.Snapshot snapshot(UUID id) {
         return new UsageDtos.Snapshot(
                 "1.0", id, UsageDtos.Trigger.scheduled, java.time.LocalDate.parse("2026-11-20"),
