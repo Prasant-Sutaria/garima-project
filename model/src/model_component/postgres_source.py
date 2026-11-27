@@ -40,7 +40,7 @@ def load_real_daily_usage(connection: Any) -> pd.DataFrame:
 
 
 SYNTHETIC_PARTICIPANTS_SQL = """
-SELECT synthetic_id, profession, age_band
+SELECT synthetic_id, profession, age_band, addiction_level
 FROM synthetic.participants
 ORDER BY synthetic_id
 """

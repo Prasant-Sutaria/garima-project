@@ -7,7 +7,9 @@ CREATE TABLE IF NOT EXISTS synthetic.participants (
     synthetic_id INTEGER PRIMARY KEY,
     profession TEXT NOT NULL
         CHECK (profession IN ('student', 'working_professional', 'homemaker')),
-    age_band TEXT NOT NULL CHECK (age_band IN ('18-24', '25-34', '35-44', '45+'))
+    age_band TEXT NOT NULL CHECK (age_band IN ('18-24', '25-34', '35-44', '45+')),
+    -- Generator label for demos, not a measurement or diagnosis.
+    addiction_level TEXT NOT NULL CHECK (addiction_level IN ('pre', 'mild', 'high'))
 );
 
 CREATE TABLE IF NOT EXISTS synthetic.hourly_usage (

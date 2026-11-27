@@ -32,6 +32,7 @@ DAYPARTS = {
     "late_night": (0, 5),
 }
 DAY_TYPES = ("weekday", "weekend")
+ADDICTION_LEVELS = ("pre", "mild", "high")
 
 
 def _with_day_type(hourly: pd.DataFrame) -> pd.DataFrame:
@@ -65,28 +66,45 @@ def _combined(weekday: np.ndarray, weekend: np.ndarray) -> np.ndarray:
     return (5 * weekday + 2 * weekend) / 7
 
 
-def _profession_summaries(
-    frame: pd.DataFrame, profiles: pd.DataFrame, professions: pd.Series
+def _group_summaries(
+    frame: pd.DataFrame,
+    profiles: pd.DataFrame,
+    groups: pd.Series,
+    key: str,
+    order: list[str],
 ) -> list[dict[str, object]]:
     daily = frame.groupby(["synthetic_id", "usage_date", "day_type"], as_index=False)[
-        "screen_minutes"
+        ["screen_minutes", "unlock_count"]
     ].sum()
-    daily["profession"] = daily["synthetic_id"].map(professions)
+    daily["group"] = daily["synthetic_id"].map(groups)
     summaries = []
-    for profession in sorted(professions.unique()):
-        members = professions.index[professions == profession]
+    for group in order:
+        members = groups.index[groups == group]
+        if len(members) == 0:
+            continue
         visible = len(members) >= MIN_GROUP_SIZE
         weekday = profiles.loc[members, "weekday"].to_numpy().mean(axis=0)
         weekend = profiles.loc[members, "weekend"].to_numpy().mean(axis=0)
         combined = _combined(weekday, weekend)
         shares = _daypart_shares(combined)
-        minutes = daily[daily["profession"] == profession].groupby("day_type")["screen_minutes"]
+        group_days = daily[daily["group"] == group].groupby("day_type")
         summaries.append(
             {
-                "profession": profession,
+                key: group,
                 "participants": int(len(members)),
                 "mean_daily_hours": (
-                    {day_type: float(value) / 60 for day_type, value in minutes.mean().items()}
+                    {
+                        day_type: float(value) / 60
+                        for day_type, value in group_days["screen_minutes"].mean().items()
+                    }
+                    if visible
+                    else None
+                ),
+                "mean_daily_unlocks": (
+                    {
+                        day_type: float(value)
+                        for day_type, value in group_days["unlock_count"].mean().items()
+                    }
                     if visible
                     else None
                 ),
@@ -138,16 +156,89 @@ def _profession_classifier(
     }
 
 
+def _hourly_heatmap(frame: pd.DataFrame, rows: pd.Series, order: list[str]) -> dict[str, object]:
+    """Mean screen minutes per participant-day for each (row group, hour); groups with fewer
+    than MIN_GROUP_SIZE participants are suppressed."""
+    labelled = frame.assign(row=frame["synthetic_id"].map(rows))
+    means = labelled.groupby(["row", "hour"])["screen_minutes"].mean().unstack("hour")
+    sizes = labelled.groupby("row")["synthetic_id"].nunique()
+    present = [row for row in order if row in means.index]
+    return {
+        "rows": present,
+        "columns": list(range(24)),
+        "unit": "minutes per participant-day",
+        "values": [
+            [float(v) for v in means.loc[row].reindex(range(24), fill_value=0.0)]
+            if sizes[row] >= MIN_GROUP_SIZE
+            else None
+            for row in present
+        ],
+    }
+
+
+def _heatmaps(
+    frame: pd.DataFrame, participants: pd.DataFrame | None
+) -> dict[str, dict[str, object]]:
+    weekday_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    day_names = dict(enumerate(weekday_names))
+    weekday = frame.assign(row=frame["usage_date"].dt.day_of_week.map(day_names))
+    means = weekday.groupby(["row", "hour"])["screen_minutes"].mean().unstack("hour")
+    heatmaps: dict[str, dict[str, object]] = {
+        "hour_by_weekday": {
+            "rows": weekday_names,
+            "columns": list(range(24)),
+            "unit": "minutes per participant-day",
+            "values": [
+                [float(v) for v in means.loc[name].reindex(range(24), fill_value=0.0)]
+                for name in weekday_names
+            ],
+        }
+    }
+    if participants is None:
+        return heatmaps
+    indexed = participants.set_index("synthetic_id")
+    for key, column, order in (
+        ("hour_by_profession", "profession", sorted(indexed["profession"].unique())),
+        ("hour_by_addiction_level", "addiction_level", list(ADDICTION_LEVELS)),
+        ("hour_by_age_band", "age_band", ["18-24", "25-34", "35-44", "45+"]),
+    ):
+        if column in indexed.columns:
+            heatmaps[key] = _hourly_heatmap(frame, indexed[column], order)
+
+    if {"profession", "addiction_level"} <= set(indexed.columns):
+        daily = frame.groupby(["synthetic_id", "usage_date"])["screen_minutes"].sum().reset_index()
+        daily = daily.join(indexed[["profession", "addiction_level"]], on="synthetic_id")
+        hours = daily.groupby(["profession", "addiction_level"])["screen_minutes"].mean() / 60
+        sizes = daily.groupby(["profession", "addiction_level"])["synthetic_id"].nunique()
+        professions = sorted(indexed["profession"].unique())
+        heatmaps["profession_by_addiction_level"] = {
+            "rows": professions,
+            "columns": list(ADDICTION_LEVELS),
+            "unit": "hours per day",
+            "values": [
+                [
+                    float(hours[(p, level)])
+                    if sizes.get((p, level), 0) >= MIN_GROUP_SIZE
+                    else None
+                    for level in ADDICTION_LEVELS
+                ]
+                for p in professions
+            ],
+        }
+    return heatmaps
+
+
 def learn_time_of_day_patterns(
     hourly: pd.DataFrame,
     participants: pd.DataFrame | None = None,
     k_range: range = range(2, 7),
     seed: int = 20261124,
 ) -> dict[str, object]:
-    """Summarise hourly rhythms per profession and cluster participants by rhythm.
+    """Summarise hourly rhythms per profession and addiction level, and cluster participants
+    by rhythm.
 
-    `participants` (synthetic_id, profession) is optional; without it only the clusters are
-    reported.
+    `participants` (synthetic_id, profession, optional addiction_level) is optional; without
+    it only the clusters are reported. Neither label is used to form the clusters.
     """
     if set(hourly["source"].unique()) != {"synthetic"}:
         raise ValueError("time-of-day model accepts only source=synthetic rows")
@@ -169,8 +260,12 @@ def learn_time_of_day_patterns(
     labels = best_model.labels_
 
     professions = None
+    addiction = None
     if participants is not None:
-        professions = participants.set_index("synthetic_id")["profession"].reindex(profiles.index)
+        indexed = participants.set_index("synthetic_id").reindex(profiles.index)
+        professions = indexed["profession"]
+        if "addiction_level" in indexed.columns:
+            addiction = indexed["addiction_level"]
 
     clusters = []
     used_names: set[str] = set()
@@ -202,6 +297,12 @@ def learn_time_of_day_patterns(
                 if visible
                 else None
             )
+        if addiction is not None:
+            cluster["addiction_mix"] = (
+                {k: int(v) for k, v in addiction[member_mask].value_counts().items()}
+                if visible
+                else None
+            )
         clusters.append(cluster)
     clusters.sort(key=lambda c: -c["participants"])
 
@@ -220,6 +321,7 @@ def learn_time_of_day_patterns(
         "chosen_clusters": int(best_k),
         "silhouette_score": best_score,
         "clusters": clusters,
+        "heatmaps": _heatmaps(frame, participants),
         "model": {
             "type": "KMeans",
             "features": "48 hourly shares of daily screen time (24 weekday + 24 weekend)",
@@ -228,9 +330,23 @@ def learn_time_of_day_patterns(
         },
     }
     if professions is not None:
-        result["professions"] = _profession_summaries(frame, profiles, professions)
+        result["professions"] = _group_summaries(
+            frame, profiles, professions, "profession", sorted(professions.unique())
+        )
         result["profession_recovery_adjusted_rand"] = float(
             adjusted_rand_score(professions.to_numpy(), labels)
         )
         result["profession_classifier"] = _profession_classifier(profiles, professions, seed)
+    if addiction is not None:
+        result["addiction_levels"] = _group_summaries(
+            frame, profiles, addiction, "addiction_level", list(ADDICTION_LEVELS)
+        )
+        if professions is not None:
+            counts = pd.crosstab(professions, addiction)
+            result["profession_by_addiction_level"] = {
+                str(profession): {
+                    level: int(counts.loc[profession].get(level, 0)) for level in ADDICTION_LEVELS
+                }
+                for profession in counts.index
+            }
     return result

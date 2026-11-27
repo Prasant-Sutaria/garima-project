@@ -8,6 +8,10 @@ Each profession has its own weekday and weekend rhythm built from circular Gauss
 and every profession leans towards night (21:00-23:59) and late-night (00:00-02:59) use.
 Participants differ by body clock (bumps shifted together), bump strength, daily volume, and
 day-to-day noise. Each hour is capped at 60 minutes and unlocks scale with screen time.
+
+Each participant is also tagged with a synthetic addiction level (pre, mild, high). The tag is
+a generator label, not a measurement or diagnosis; higher levels get more daily screen time,
+a stronger night/late-night lean, and more frequent unlocks.
 """
 
 from __future__ import annotations
@@ -54,15 +58,54 @@ AGE_BANDS = {
     "working_professional": (("18-24", 0.1), ("25-34", 0.45), ("35-44", 0.3), ("45+", 0.15)),
     "homemaker": (("25-34", 0.35), ("35-44", 0.4), ("45+", 0.25)),
 }
+ADDICTION_LEVELS = ("pre", "mild", "high")
+ADDICTION_PROBABILITIES = {
+    "student": (0.30, 0.40, 0.30),
+    "working_professional": (0.50, 0.35, 0.15),
+    "homemaker": (0.45, 0.40, 0.15),
+}
+
+
+@dataclass(frozen=True)
+class AddictionEffect:
+    volume: float  # multiplier on daily screen time
+    night_weight: float  # multiplier on night and late-night bumps
+    bedtime_delay: float  # hours added to night and late-night bump centres
+    after_midnight: float  # weight of an extra scrolling bump around 02:00 (before delay)
+    daytime_checking: float  # flat extra intensity over 08:00-19:59 (frequent checks)
+    quiet_from: int  # first hour of the 01:00-06:59 sleep window that is damped
+    quiet_factor: float  # multiplier on the damped sleep hours
+    unlocks_per_minute: float
+
+
+# Routine (work, classes, chores) stays fixed; the level changes bedtime, how far scrolling
+# runs past midnight, how quiet the sleep hours are, and how often the phone is checked by day.
+ADDICTION_EFFECTS = {
+    "pre": AddictionEffect(
+        volume=0.8, night_weight=0.7, bedtime_delay=-0.75, after_midnight=0.0,
+        daytime_checking=0.0, quiet_from=1, quiet_factor=0.25, unlocks_per_minute=0.22,
+    ),
+    "mild": AddictionEffect(
+        volume=1.1, night_weight=1.2, bedtime_delay=0.5, after_midnight=0.5,
+        daytime_checking=0.04, quiet_from=3, quiet_factor=0.5, unlocks_per_minute=0.28,
+    ),
+    "high": AddictionEffect(
+        volume=1.5, night_weight=1.8, bedtime_delay=1.5, after_midnight=1.4,
+        daytime_checking=0.08, quiet_from=6, quiet_factor=1.0, unlocks_per_minute=0.36,
+    ),
+}
 FLOOR = 0.03
 CONCENTRATION = 60.0
-UNLOCKS_PER_MINUTE = 0.25
 
 
 @dataclass(frozen=True)
 class SyntheticHourlyDataset:
     participants: pd.DataFrame
     hourly_usage: pd.DataFrame
+
+
+def _is_night(centre: float) -> bool:
+    return centre >= 21 or centre < 3
 
 
 def rhythm_profile(bumps: tuple[Bump, ...], shift_hours: float = 0.0) -> np.ndarray:
@@ -72,6 +115,26 @@ def rhythm_profile(bumps: tuple[Bump, ...], shift_hours: float = 0.0) -> np.ndar
         distance = np.abs(HOURS - (centre + shift_hours)) % 24
         distance = np.minimum(distance, 24 - distance)
         weights = weights + weight * np.exp(-0.5 * (distance / width) ** 2)
+    return weights / weights.sum()
+
+
+def addiction_profile(
+    bumps: tuple[Bump, ...], effect: AddictionEffect, shift_hours: float = 0.0
+) -> np.ndarray:
+    """Apply an addiction level to a routine: later, heavier night use and a longer tail past
+    midnight, plus daytime checking and less quiet sleep hours for higher levels."""
+    adjusted = tuple(
+        (centre + effect.bedtime_delay, width, weight * effect.night_weight)
+        if _is_night(centre)
+        else (centre, width, weight)
+        for centre, width, weight in bumps
+    )
+    if effect.after_midnight > 0:
+        adjusted += ((2.0 + effect.bedtime_delay, 1.0, effect.after_midnight),)
+    weights = rhythm_profile(adjusted, shift_hours)
+    weights[8:20] += effect.daytime_checking / 12
+    sleep_hours = np.arange(effect.quiet_from, 7)
+    weights[sleep_hours] *= effect.quiet_factor
     return weights / weights.sum()
 
 
@@ -94,11 +157,17 @@ def generate_hourly_usage(
     for synthetic_id in range(1, participants + 1):
         profession = PROFESSIONS[rng.choice(len(PROFESSIONS), p=PROFESSION_PROBABILITIES)]
         bands, band_p = zip(*AGE_BANDS[profession], strict=True)
+        age_band = bands[rng.choice(len(bands), p=band_p)]
+        addiction_level = ADDICTION_LEVELS[
+            rng.choice(len(ADDICTION_LEVELS), p=ADDICTION_PROBABILITIES[profession])
+        ]
+        effect = ADDICTION_EFFECTS[addiction_level]
         people.append(
             {
                 "synthetic_id": synthetic_id,
                 "profession": profession,
-                "age_band": bands[rng.choice(len(bands), p=band_p)],
+                "age_band": age_band,
+                "addiction_level": addiction_level,
                 "source": SOURCE,
             }
         )
@@ -110,8 +179,10 @@ def generate_hourly_usage(
                 (centre, width, weight * float(rng.lognormal(0.0, 0.5)))
                 for centre, width, weight in bumps
             )
-            profiles[day_type] = rhythm_profile(jittered, shift)
-        base_minutes = DAILY_MINUTES_MEDIAN[profession] * float(rng.lognormal(0.0, 0.25))
+            profiles[day_type] = addiction_profile(jittered, effect, shift)
+        base_minutes = (
+            DAILY_MINUTES_MEDIAN[profession] * effect.volume * float(rng.lognormal(0.0, 0.25))
+        )
 
         minutes = np.empty((days, 24))
         for day_index, weekend in enumerate(is_weekend):
@@ -123,7 +194,7 @@ def generate_hourly_usage(
             profile = profiles["weekend" if weekend else "weekday"]
             minutes[day_index] = np.minimum(total * rng.dirichlet(profile * CONCENTRATION), 60.0)
         minutes = np.round(minutes, 1)
-        unlocks = rng.poisson(UNLOCKS_PER_MINUTE * minutes + 0.3 * (minutes > 0.5))
+        unlocks = rng.poisson(effect.unlocks_per_minute * minutes + 0.3 * (minutes > 0.5))
 
         blocks.append(
             pd.DataFrame(
@@ -145,7 +216,7 @@ def generate_hourly_usage(
     )
 
 
-PARTICIPANT_COLUMNS = ["synthetic_id", "profession", "age_band"]
+PARTICIPANT_COLUMNS = ["synthetic_id", "profession", "age_band", "addiction_level"]
 HOURLY_COLUMNS = ["synthetic_id", "usage_date", "hour", "screen_minutes", "unlock_count"]
 
 

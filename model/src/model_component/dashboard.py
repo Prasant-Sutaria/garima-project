@@ -26,14 +26,18 @@ _PAGE = """<!doctype html>
   table { border-collapse: collapse; width: 100%; font-size: .9rem; }
   th, td { border-bottom: 1px solid #eee; padding: .35rem .5rem; text-align: left; }
   @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  .heat { overflow-x: auto; margin-bottom: 1.5rem; }
+  .heat table { width: auto; font-size: .75rem; }
+  .heat th, .heat td { border: 1px solid #fff; padding: .3rem .35rem; text-align: center; min-width: 1.9rem; }
+  .heat th.row { text-align: right; white-space: nowrap; }
+  .heat h3 { font-size: 1rem; margin-bottom: .4rem; }
 </style>
 </head>
 <body>
 <h1>Mobile usage patterns</h1>
 <p class="note">Pattern analysis only. Results describe groups of participants and are not diagnoses or clinical risk scores.</p>
 
-<h2>1. Daily pattern (real data)</h2>
-<div id="real-status"></div>
+<h2 id="real-heading">Daily pattern (real data)</h2>
 <div id="real-body">
 <div class="grid">
   <div class="card"><canvas id="weekdayChart"></canvas></div>
@@ -41,7 +45,7 @@ _PAGE = """<!doctype html>
 </div>
 </div>
 
-<h2>2. Time-of-day pattern by profession (synthetic)</h2>
+<h2>Time-of-day pattern by profession</h2>
 <div class="banner">Synthetic hourly data for students, working professionals and homemakers. The real snapshots store only daily totals, so no real time-of-day pattern is shown here.</div>
 <div id="tod-status"></div>
 <div class="grid">
@@ -65,6 +69,23 @@ _PAGE = """<!doctype html>
   <div class="card"><canvas id="clusterChart"></canvas></div>
   <div class="card"><table id="clusterTable"></table></div>
 </div>
+
+<h2>Usage by addiction level</h2>
+<div class="banner">Each synthetic participant carries a generated addiction-level tag: pre, mild or high. The tag is a demo label set by the data generator, not a measurement, diagnosis or clinical score.</div>
+<div id="addiction-status"></div>
+<div id="addiction-body">
+<div class="grid">
+  <div class="card"><canvas id="addictionHourlyChart"></canvas></div>
+  <div class="card"><canvas id="addictionDaypartChart"></canvas></div>
+  <div class="card"><canvas id="addictionVolumeChart"></canvas></div>
+  <div class="card"><table id="professionAddictionTable"></table></div>
+</div>
+<div class="card" style="margin-top:1rem"><table id="addictionTable"></table></div>
+</div>
+
+<h2>Heat maps: where usage is concentrated</h2>
+<p class="note">Darker cells mean more screen time. Hourly maps show average minutes of screen time in that hour per participant-day; "suppressed" rows have fewer than 5 participants.</p>
+<div id="heatmaps"></div>
 
 <script type="application/json" id="pattern-data">__DATA_JSON__</script>
 <script src="__CHART_JS_URL__"></script>
@@ -94,14 +115,10 @@ _PAGE = """<!doctype html>
   }
 
   const real = data.real;
-  const realStatus = document.getElementById("real-status");
   if (real.status !== "ok") {
+    document.getElementById("real-heading").hidden = true;
     document.getElementById("real-body").hidden = true;
-    text(realStatus, "Daily model not run: " + real.status + " (participants: " + (real.participants || 0) + ").");
   } else {
-    text(realStatus, "Source: real, read-only. " + real.participants + " participants, " + real.participant_days +
-      " participant-days, " + real.date_range[0] + " to " + real.date_range[1] +
-      ". Weekend minus weekday (model): " + real.weekend_minus_weekday_hours.toFixed(2) + " h/day.");
     new Chart(document.getElementById("weekdayChart"), {
       type: "bar",
       data: {
@@ -206,10 +223,128 @@ _PAGE = """<!doctype html>
     },
     options: { plugins: { title: { display: true, text: "Learned groups: share of screen time by hour (%)" } } }
   });
-  table(document.getElementById("clusterTable"), ["Group", "Participants", "Peak", "Night + late night", "Profession mix"], tod.clusters.map(function (c) {
-    const mix = c.profession_mix ? Object.keys(c.profession_mix).map(function (p) { return label(p) + " " + c.profession_mix[p]; }).join(", ") : "-";
-    return [c.label, c.participants, hh(c.peak_hour), c.daypart_shares ? pct(c.daypart_shares.night + c.daypart_shares.late_night) : "suppressed", mix];
+  const levelNames = { pre: "Pre", mild: "Mild", high: "High" };
+  const levelColours = { pre: "#2ca58d", mild: "#f0a020", high: "#c0392b" };
+  function levelLabel(l) { return levelNames[l] || l; }
+  function mixText(mix, labeller) {
+    return mix ? Object.keys(mix).map(function (k) { return labeller(k) + " " + mix[k]; }).join(", ") : "-";
+  }
+  table(document.getElementById("clusterTable"), ["Group", "Participants", "Peak", "Night + late night", "Profession mix", "Addiction mix"], tod.clusters.map(function (c) {
+    return [c.label, c.participants, hh(c.peak_hour), c.daypart_shares ? pct(c.daypart_shares.night + c.daypart_shares.late_night) : "suppressed",
+      mixText(c.profession_mix, label), mixText(c.addiction_mix, levelLabel)];
   }));
+
+  const levels = tod.addiction_levels || [];
+  const visibleLevels = levels.filter(function (l) { return l.weekday_hourly_share; });
+  if (!levels.length) {
+    document.getElementById("addiction-body").hidden = true;
+    text(document.getElementById("addiction-status"), "No addiction-level tags in the synthetic data.");
+  } else {
+    text(document.getElementById("addiction-status"), levels.map(function (l) {
+      return levelLabel(l.addiction_level) + ": " + l.participants;
+    }).join(", ") + " participants.");
+    new Chart(document.getElementById("addictionHourlyChart"), {
+      type: "line",
+      data: {
+        labels: hourLabels,
+        datasets: visibleLevels.map(function (l) {
+          const combined = l.weekday_hourly_share.map(function (v, h) { return (5 * v + 2 * l.weekend_hourly_share[h]) / 7 * 100; });
+          return { label: levelLabel(l.addiction_level) + " (n=" + l.participants + ")", data: combined, borderColor: levelColours[l.addiction_level], backgroundColor: levelColours[l.addiction_level], pointRadius: 0, tension: 0.3 };
+        })
+      },
+      options: { plugins: { title: { display: true, text: "Share of screen time by hour, by addiction level (%)" } } }
+    });
+    new Chart(document.getElementById("addictionDaypartChart"), {
+      type: "bar",
+      data: {
+        labels: visibleLevels.map(function (l) { return levelLabel(l.addiction_level); }),
+        datasets: parts.map(function (part, i) {
+          return { label: partNames[part] || part, data: visibleLevels.map(function (l) { return l.daypart_shares[part] * 100; }), backgroundColor: palette[i % palette.length] };
+        })
+      },
+      options: { indexAxis: "y", plugins: { title: { display: true, text: "Daypart share by addiction level (%)" } }, scales: { x: { stacked: true, max: 100 }, y: { stacked: true } } }
+    });
+    function weeklyMean(values) { return (5 * values.weekday + 2 * values.weekend) / 7; }
+    new Chart(document.getElementById("addictionVolumeChart"), {
+      type: "bar",
+      data: {
+        labels: visibleLevels.map(function (l) { return levelLabel(l.addiction_level); }),
+        datasets: [
+          { label: "Screen time (h/day)", data: visibleLevels.map(function (l) { return weeklyMean(l.mean_daily_hours); }), backgroundColor: palette[0], yAxisID: "hours" },
+          { label: "Unlocks per day", data: visibleLevels.map(function (l) { return weeklyMean(l.mean_daily_unlocks); }), backgroundColor: palette[1], yAxisID: "unlocks" }
+        ]
+      },
+      options: { plugins: { title: { display: true, text: "Daily volume by addiction level" } },
+        scales: { hours: { position: "left", title: { display: true, text: "hours" } }, unlocks: { position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "unlocks" } } } }
+    });
+    const crosstab = tod.profession_by_addiction_level || {};
+    const levelKeys = levels.map(function (l) { return l.addiction_level; });
+    table(document.getElementById("professionAddictionTable"), ["Profession"].concat(levelKeys.map(levelLabel)),
+      Object.keys(crosstab).map(function (p) { return [label(p)].concat(levelKeys.map(function (k) { return crosstab[p][k]; })); }));
+    table(document.getElementById("addictionTable"),
+      ["Addiction level", "Participants", "Weekday peak", "Weekend peak", "Night + late-night share", "Weekday h/day", "Weekend h/day", "Unlocks/day"],
+      levels.map(function (l) {
+        const ok = l.daypart_shares !== null;
+        return [levelLabel(l.addiction_level), l.participants, hh(l.peak_hour_weekday), hh(l.peak_hour_weekend),
+          ok ? pct(l.daypart_shares.night + l.daypart_shares.late_night) : "suppressed",
+          ok ? l.mean_daily_hours.weekday.toFixed(2) : "suppressed", ok ? l.mean_daily_hours.weekend.toFixed(2) : "suppressed",
+          ok ? weeklyMean(l.mean_daily_unlocks).toFixed(0) : "suppressed"];
+      }));
+  }
+
+  const ageNames = { "18-24": "Age 18-24", "25-34": "Age 25-34", "35-44": "Age 35-44", "45+": "Age 45+" };
+  function heatColour(value, max) {
+    const t = max > 0 ? Math.min(value / max, 1) : 0;
+    const light = 96 - t * 62;
+    return "hsl(" + (48 - t * 48) + ", 90%, " + light + "%)";
+  }
+  function heatmap(spec, title, rowLabel, colLabel, digits) {
+    const wrapper = document.createElement("div");
+    wrapper.className = "heat card";
+    const heading = document.createElement("h3");
+    heading.textContent = title + " (" + spec.unit + ")";
+    wrapper.appendChild(heading);
+    const grid = document.createElement("table");
+    const head = document.createElement("tr");
+    head.appendChild(document.createElement("th"));
+    spec.columns.forEach(function (c) { const th = document.createElement("th"); th.textContent = colLabel(c); head.appendChild(th); });
+    grid.appendChild(head);
+    const all = [].concat.apply([], spec.values.filter(Boolean)).filter(function (v) { return v !== null; });
+    const max = all.length ? Math.max.apply(null, all) : 0;
+    spec.rows.forEach(function (row, i) {
+      const tr = document.createElement("tr");
+      const th = document.createElement("th");
+      th.className = "row";
+      th.textContent = rowLabel(row);
+      tr.appendChild(th);
+      const values = spec.values[i];
+      spec.columns.forEach(function (c, j) {
+        const td = document.createElement("td");
+        const value = values ? values[j] : null;
+        if (value === null) {
+          td.textContent = "-";
+          td.title = "suppressed (n<5)";
+        } else {
+          td.textContent = value.toFixed(digits);
+          td.style.background = heatColour(value, max);
+          if (value / max > 0.6) { td.style.color = "#fff"; }
+          td.title = rowLabel(row) + ", " + colLabel(c) + ": " + value.toFixed(2) + " " + spec.unit;
+        }
+        tr.appendChild(td);
+      });
+      grid.appendChild(tr);
+    });
+    wrapper.appendChild(grid);
+    document.getElementById("heatmaps").appendChild(wrapper);
+  }
+  const heat = tod.heatmaps || {};
+  const hourColumn = function (h) { return String(h).padStart(2, "0"); };
+  const identity = function (v) { return v; };
+  if (heat.hour_by_weekday) heatmap(heat.hour_by_weekday, "Hour of day by day of week", identity, hourColumn, 0);
+  if (heat.hour_by_profession) heatmap(heat.hour_by_profession, "Hour of day by profession", label, hourColumn, 0);
+  if (heat.hour_by_addiction_level) heatmap(heat.hour_by_addiction_level, "Hour of day by addiction level", levelLabel, hourColumn, 0);
+  if (heat.hour_by_age_band) heatmap(heat.hour_by_age_band, "Hour of day by age band", function (a) { return ageNames[a] || a; }, hourColumn, 0);
+  if (heat.profession_by_addiction_level) heatmap(heat.profession_by_addiction_level, "Profession by addiction level: average daily screen time", label, levelLabel, 2);
 })();
 </script>
 </body>

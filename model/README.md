@@ -43,7 +43,7 @@ Run the local health API with `uvicorn model_component.api:app --host 127.0.0.1 
 
 The project ships a generated dataset of hourly phone use. It covers 300 synthetic participants over 28 days (2026-01-05 to 2026-02-01), for a total of 201,600 rows. It is not participant data.
 
-- `participants.csv`: `synthetic_id`, `profession` (`student`, `working_professional`, `homemaker`), `age_band`.
+- `participants.csv`: `synthetic_id`, `profession` (`student`, `working_professional`, `homemaker`), `age_band`, `addiction_level` (`pre`, `mild`, `high`).
 - `hourly_usage.csv`: `synthetic_id`, `usage_date`, `hour` (0-23, local time), `screen_minutes` (0-60), `unlock_count`.
 - `schema.sql` creates the separate Postgres schema `synthetic`. `load.sql` (re)loads the CSVs in one transaction and grants read access to `usage_model_reader` if that role exists. Synthetic rows never go into `public` or `registry` tables.
 
@@ -55,23 +55,35 @@ Each profession has its own weekday and weekend rhythm, and all of them lean tow
 | Working professional | Wake-up check, commute, lunch break, commute home, night scrolling from about 21:00 to 00:30 | More daytime use, night peak |
 | Homemaker | Mid-morning and afternoon lulls between chores, then after dinner until about midnight | Later start, evening and night |
 
-People differ by body clock (up to ?3 h), the strength of each part of their routine, daily volume, and day-to-day noise. About 5% of days are light days. Hours are capped at 60 minutes, and unlocks scale with screen time. In the committed data, about 54% of screen time falls between 21:00 and 05:59. The data is deterministic, so regenerate it after changing `src/model_component/hourly_synthetic.py`:
+People differ by body clock (up to ?3 h), the strength of each part of their routine, daily volume, and day-to-day noise. About 5% of days are light days. Hours are capped at 60 minutes, and unlocks scale with screen time.
+
+Every participant is tagged with a synthetic addiction level. The tag is a label chosen by the generator, not a measurement or diagnosis. The daytime routine (work, classes, chores) stays the same; the level changes when the person stops using the phone at night, how far use runs past midnight, how quiet the sleep hours are, and how often the phone is checked during the day:
+
+| Level | Daily screen time | Night use | After midnight | Sleep hours (01:00-06:59) | Daytime checking | Unlocks per screen minute | Share by profession (student / working professional / homemaker) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `pre` | x0.8 | x0.7, bedtime 45 min earlier | none | quiet from 01:00 | none | 0.22 | 30% / 50% / 45% |
+| `mild` | x1.1 | x1.2, 30 min later | extra bump around 02:30 | damped from 03:00 | light | 0.28 | 40% / 35% / 40% |
+| `high` | x1.5 | x1.8, 90 min later | strong bump around 03:30 | active until about 05:00 | frequent | 0.36 | 30% / 15% / 15% |
+
+In the committed data, about 52% of screen time falls between 21:00 and 05:59. By level the weekday peak is 22:00 for `pre` (39% of use at night and late night), 00:00 for `mild` (59%), and 01:00 for `high` (67%). The data is deterministic, so regenerate it after changing `src/model_component/hourly_synthetic.py`:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\generate_synthetic_data.py
 ```
 
-Load it into Postgres with `docker compose --profile model run --rm synthetic-loader`. Without Docker, run `psql -v ON_ERROR_STOP=1 -f load.sql` from `data/synthetic` as the database owner.
+Load it into Postgres with `docker compose --profile model run --rm synthetic-loader`. Without Docker, run `psql -v ON_ERROR_STOP=1 -f load.sql` from `data/synthetic` as the database owner. Re-running `load.sql` also adds the `addiction_level` column to a `synthetic.participants` table created before the tag existed.
 
 ## Usage-pattern dashboard (read-only Postgres job)
 
-`scripts/run_usage_patterns.py` is a one-shot job that writes `index.html`, `data/*.json`, and `run_manifest.json` to the output directory. It has two separate sections:
+`scripts/run_usage_patterns.py` is a one-shot job that writes `index.html`, `data/*.json`, and `run_manifest.json` to the output directory. It has four sections:
 
-1. **Real daily pattern.** It reads scheduled daily snapshots through a read-only connection and learns how daily screen-on time varies by weekday. The dashboard shows the weekday profile and validation metrics. The day-by-day trend is written only to `data/real_daily_patterns.json` and is not displayed.
+1. **Real daily pattern.** It reads scheduled daily snapshots through a read-only connection and learns how daily screen-on time varies by weekday. The dashboard shows the weekday profile and validation metrics, without a run summary line. If the real model is skipped or has too little data, the section is hidden; its status stays in `run_manifest.json` and `data/real_daily_patterns.json`. The day-by-day trend is written only to `data/real_daily_patterns.json` and is not displayed.
 2. **Time of day by profession (synthetic).** It reads the `synthetic` schema and produces:
    - weekday and weekend hourly profiles and daypart shares per profession;
    - a cross-validated classifier that shows how well hourly rhythm alone predicts profession, with a confusion matrix and the hours that most distinguish each profession;
-   - KMeans groups found without using profession, compared with profession by adjusted Rand index.
+   - KMeans groups found without using profession, compared with profession by adjusted Rand index, with each group's profession and addiction-level mix.
+3. **Usage by addiction level (synthetic).** For `pre`, `mild` and `high` it shows the hourly rhythm, daypart shares, daily screen time and unlocks, peak hours, and a profession-by-level count table.
+4. **Heat maps (synthetic).** Colour-scaled grids of average screen minutes per participant-day for hour of day by day of week, profession, addiction level and age band, plus average daily hours for profession by addiction level. Rows or cells with fewer than 5 participants are suppressed.
 
 Details:
 

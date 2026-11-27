@@ -6,7 +6,12 @@ import pandas as pd
 import pytest
 
 from model_component.daily_patterns import train_daily_pattern_model
-from model_component.hourly_synthetic import PROFESSIONS, generate_hourly_usage, read_csv
+from model_component.hourly_synthetic import (
+    ADDICTION_LEVELS,
+    PROFESSIONS,
+    generate_hourly_usage,
+    read_csv,
+)
 from model_component.postgres_source import load_real_daily_usage, load_synthetic_hourly_usage
 from model_component.time_of_day import learn_time_of_day_patterns
 
@@ -107,6 +112,7 @@ def test_committed_synthetic_csvs_match_the_postgres_schema_rules():
 
     assert len(data.participants) == 300
     assert set(data.participants["profession"]) == set(PROFESSIONS)
+    assert set(data.participants["addiction_level"]) == set(ADDICTION_LEVELS)
     assert len(hourly) == 300 * 28 * 24
     assert not hourly.duplicated(["synthetic_id", "usage_date", "hour"]).any()
     assert hourly["hour"].between(0, 23).all()
@@ -118,14 +124,18 @@ def test_synthetic_loader_reads_the_separate_schema():
     data = generate_hourly_usage(participants=30, days=7, seed=2)
     connection = sqlite3.connect(":memory:")
     connection.execute("ATTACH ':memory:' AS synthetic")
-    connection.execute("CREATE TABLE synthetic.participants (synthetic_id, profession, age_band)")
+    connection.execute(
+        "CREATE TABLE synthetic.participants (synthetic_id, profession, age_band, addiction_level)"
+    )
     connection.execute(
         "CREATE TABLE synthetic.hourly_usage "
         "(synthetic_id, usage_date, hour, screen_minutes, unlock_count)"
     )
     connection.executemany(
-        "INSERT INTO synthetic.participants VALUES (?, ?, ?)",
-        data.participants[["synthetic_id", "profession", "age_band"]].itertuples(index=False),
+        "INSERT INTO synthetic.participants VALUES (?, ?, ?, ?)",
+        data.participants[["synthetic_id", "profession", "age_band", "addiction_level"]].itertuples(
+            index=False
+        ),
     )
     hourly = data.hourly_usage.assign(usage_date=data.hourly_usage["usage_date"].dt.date)
     connection.executemany(
@@ -140,6 +150,45 @@ def test_synthetic_loader_reads_the_separate_schema():
     assert set(loaded.hourly_usage["source"]) == {"synthetic"}
     assert len(loaded.hourly_usage) == 30 * 7 * 24
     assert set(loaded.participants["profession"]) <= set(PROFESSIONS)
+    assert set(loaded.participants["addiction_level"]) <= set(ADDICTION_LEVELS)
+
+
+def test_time_of_day_reports_rising_usage_across_addiction_levels():
+    data = generate_hourly_usage(participants=300, days=14, seed=11)
+
+    result = learn_time_of_day_patterns(data.hourly_usage, data.participants, seed=11)
+
+    levels = result["addiction_levels"]
+    assert [level["addiction_level"] for level in levels] == list(ADDICTION_LEVELS)
+    assert sum(level["participants"] for level in levels) == 300
+
+    def weekly(values):
+        return (5 * values["weekday"] + 2 * values["weekend"]) / 7
+
+    hours = [weekly(level["mean_daily_hours"]) for level in levels]
+    unlocks = [weekly(level["mean_daily_unlocks"]) for level in levels]
+    night = [
+        level["daypart_shares"]["night"] + level["daypart_shares"]["late_night"] for level in levels
+    ]
+    assert hours == sorted(hours) and unlocks == sorted(unlocks) and night == sorted(night)
+    late = [level["daypart_shares"]["late_night"] for level in levels]
+    assert late[2] - late[0] > 0.25  # high users keep scrolling well past midnight
+    pre_curve, high_curve = levels[0]["weekday_hourly_share"], levels[2]["weekday_hourly_share"]
+    assert sum(pre_curve[2:6]) < 0.03 < 0.2 < sum(high_curve[2:6])  # quiet vs active sleep hours
+    crosstab = result["profession_by_addiction_level"]
+    assert set(crosstab) == set(PROFESSIONS)
+    assert sum(sum(row.values()) for row in crosstab.values()) == 300
+    assert all("addiction_mix" in cluster for cluster in result["clusters"])
+
+    heatmaps = result["heatmaps"]
+    assert len(heatmaps["hour_by_weekday"]["values"]) == 7
+    by_level = heatmaps["hour_by_addiction_level"]
+    assert by_level["rows"] == list(ADDICTION_LEVELS)
+    assert by_level["values"][2][0] > by_level["values"][0][0]  # high > pre at midnight
+    assert set(heatmaps["hour_by_age_band"]["rows"]) == set(data.participants["age_band"])
+    matrix = heatmaps["profession_by_addiction_level"]
+    assert matrix["columns"] == list(ADDICTION_LEVELS)
+    assert all(row[0] is None or row[2] is None or row[2] > row[0] for row in matrix["values"])
 
 
 def test_time_of_day_learns_profession_rhythms_from_synthetic_rows():
