@@ -93,8 +93,11 @@ removing the key volume can make existing local encrypted data unreadable.
   [registration-frontend/README.md](./registration-frontend/README.md), including
   how to run it with Docker Compose.
 - The model is an offline, synthetic-data pipeline with a separate optional
-  health API. Follow [model/README.md](./model/README.md) for dashboard and
-  model setup; it is not started by `start-all`.
+  health API. Follow [model/README.md](./model/README.md) to set it up and run
+  it; it is not started by `start-all` or by the default Compose stack. Start its
+  containerized health API with `docker compose --profile model up --build -d model-api`;
+  it is available at **http://127.0.0.1:8000/api/v1/health**. The model dashboard
+  job and dashboard server remain separately runnable with the `model` profile.
 
 ## Local-development only
 
