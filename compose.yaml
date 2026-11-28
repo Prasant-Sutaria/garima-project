@@ -46,6 +46,23 @@ services:
     ports:
       - "${FRONTEND_HOST_PORT:-3000}:3000"
 
+  synthetic-dashboard-job:
+    build: ./model
+    command: ["python", "scripts/run_usage_patterns.py", "--skip-real", "--synthetic-csv", "/data", "--output-dir", "/output"]
+    volumes:
+      - ./model/data/synthetic:/data:ro
+      - synthetic_dashboard_output:/output
+
+  synthetic-dashboard:
+    image: nginx:1.27-alpine
+    depends_on:
+      synthetic-dashboard-job:
+        condition: service_completed_successfully
+    volumes:
+      - synthetic_dashboard_output:/usr/share/nginx/html:ro
+    ports:
+      - "${SYNTHETIC_DASHBOARD_HOST_PORT:-8091}:80"
+
   # One-shot loader: (re)loads the committed synthetic CSVs into the separate `synthetic` schema.
   synthetic-loader:
     image: postgres:16.4
@@ -62,6 +79,16 @@ services:
     volumes:
       - ./model/data/synthetic:/data:ro
     command: ["psql", "-v", "ON_ERROR_STOP=1", "-f", "load.sql"]
+
+  # Internal health API; it does not accept participant data or serve scoring.
+  model-api:
+    build: ./model
+    profiles: ["model"]
+    environment:
+      APP_ENV: ${MODEL_APP_ENV:-dev}
+    ports:
+      - "${MODEL_API_HOST_PORT:-8000}:8000"
+    command: ["uvicorn", "model_component.api:app", "--host", "0.0.0.0", "--port", "8000"]
 
   # One-shot job: reads daily usage through a read-only role, writes the dashboard to /output.
   # Run with: docker compose --profile model run --rm model-job
@@ -95,3 +122,4 @@ volumes:
   postgres_data:
   local_keys:
   pattern_output:
+  synthetic_dashboard_output:

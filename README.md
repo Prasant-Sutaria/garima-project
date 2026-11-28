@@ -18,8 +18,12 @@ From the project root:
 docker compose up --build -d
 ```
 
-This starts PostgreSQL, the backend, and the registration frontend. Open
-**http://127.0.0.1:3000**; check backend readiness at
+This starts PostgreSQL, the backend, the registration frontend, and a
+synthetic-only model dashboard. Open **http://127.0.0.1:3000** for registration
+and **http://127.0.0.1:8091** for the dashboard. The dashboard starts after its
+one-shot generation job completes; its charts require internet access for
+Chart.js. Set `SYNTHETIC_DASHBOARD_HOST_PORT` to change its host port.
+Check backend readiness at
 **http://127.0.0.1:8080/api/v1/health** before submitting a registration. The
 backend can take longer to start than the frontend. Stop the services without
 deleting their data:
@@ -89,8 +93,8 @@ removing the key volume can make existing local encrypted data unreadable.
   [registration-frontend/README.md](./registration-frontend/README.md), including
   how to run it with Docker Compose.
 - The model is an offline, synthetic-data pipeline with a separate optional
-  health API. Follow [model/README.md](./model/README.md) to set it up and run
-  it; it is not started by `start-all`.
+  health API. Follow [model/README.md](./model/README.md) for dashboard and
+  model setup; it is not started by `start-all`.
 
 ## Local-development only
 

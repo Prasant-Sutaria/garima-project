@@ -108,12 +108,18 @@ Local run without a database (requires `pip install -e ".[dev]"`). This reads th
 
 Without `--synthetic-csv`, the job reads the `synthetic` schema and needs the `MODEL_DB_*` variables, including `MODEL_DB_PASSWORD`.
 
+The root `docker compose up --build -d` also generates and serves a synthetic-only dashboard at `http://localhost:8091`. The generation job reads the committed CSVs without a database and must complete successfully before the dashboard starts. Set `SYNTHETIC_DASHBOARD_HOST_PORT` to change the host port. To regenerate the dashboard after changing the CSVs, run `docker compose up --build -d --force-recreate synthetic-dashboard-job synthetic-dashboard`. Charts require internet access for Chart.js.
+
 Container run (the `model` profile keeps these services out of a plain `docker compose up`). Set `MODEL_DB_PASSWORD` in the root `.env` first. `model-job` runs `synthetic-loader` first, then writes the dashboard:
 
 ```powershell
+docker compose --profile model up -d model-api
+curl.exe http://localhost:8000/api/v1/health
 docker compose --profile model run --rm model-job
 docker compose --profile model up -d pattern-dashboard
 ```
+
+The internal health API exposes no participant or scoring endpoints. Set `MODEL_API_HOST_PORT` to change its host port.
 
 Open `http://localhost:8090`. The page loads Chart.js from a CDN, so the browser needs internet access.
 
